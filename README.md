@@ -16,7 +16,7 @@ TODO List
 ------------
  * find and configure ch341 (done).
  * read flash ID (done).
- * read flash contents.
+ * read flash contents (done).
  * clear flash
  * blank check
  * write to flash memory
