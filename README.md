@@ -5,7 +5,8 @@ A simple programmer based on ch341a multi-functional chip.
 Description
 ------------
 There are a lot cheap SPI/IIC programmers based on ch341a, which can be
-as low as $3.  However, the best I can find is a tool called `ch341eeprom'
+as low as $3.  However, the best I can find is a tool called `ch341eepromtool'
+(http://sourceforge.net/projects/ch341eepromtool/)
 which can only deal with IIC EEPROMs, so I decide to write my own.
 
 After reading the source for ch341eeprom and sniffering the usb traffic,
