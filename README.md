@@ -39,4 +39,5 @@ TODO List
  * read flash contents (done).
  * read flash status register (done).
  * clear flash (done).
- * write to flash memory
+ * write to flash memory (done).
+ * command line user interface

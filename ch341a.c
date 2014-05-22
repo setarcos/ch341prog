@@ -252,8 +252,10 @@ void cbBulkIn(struct libusb_transfer *transfer)
     switch(transfer->status) {
         case LIBUSB_TRANSFER_COMPLETED:
             /* the first package has cmd and address info, so discard 4 bytes */
-            for(int i = (bulkin_count == 0) ? 4 : 0; i < transfer->actual_length; ++i) {
-                *((uint8_t*)transfer->user_data++) = swapByte(transfer->buffer[i]);
+            if (transfer->user_data != NULL) {
+                for(int i = (bulkin_count == 0) ? 4 : 0; i < transfer->actual_length; ++i) {
+                    *((uint8_t*)transfer->user_data++) = swapByte(transfer->buffer[i]);
+                }
             }
             bulkin_count++;
             break;
@@ -332,6 +334,86 @@ int32_t ch341SpiRead(struct libusb_device_handle *devHandle, uint8_t *buf, uint3
         ch341SpiCs(out, false);
         ret = usbTransfer(__func__, devHandle, BULK_WRITE_ENDPOINT, out, 3);
         if (ret < 0) break;
+    }
+    libusb_free_transfer(xferBulkIn);
+    libusb_free_transfer(xferBulkOut);
+    return ret;
+}
+
+#define WRITE_PAYLOAD_LENGTH 301 // 301 is the length of a page(256)'s data with protocol overhead 
+/* write buffer(*buf) to SPI flash, address(add) should on the boundary of a page  */
+int32_t ch341SpiWrite(struct libusb_device_handle *devHandle, uint8_t *buf, uint32_t add, uint32_t len)
+{
+    uint8_t out[WRITE_PAYLOAD_LENGTH];
+    uint8_t in[CH341_PACKET_LENGTH];
+    uint32_t tmp, pkg_count;
+    struct libusb_transfer *xferBulkIn, *xferBulkOut;
+    uint32_t idx = 0;
+    uint32_t ret;
+    int32_t old_counter;
+    struct timeval tv = {0, 100};
+
+    memset(out, 0xff, WRITE_PAYLOAD_LENGTH);
+    xferBulkIn  = libusb_alloc_transfer(0);
+    xferBulkOut = libusb_alloc_transfer(0);
+
+    while (len > 0) {
+        out[0] = 0x06; // Write enable
+        ret = ch341SpiStream(devHandle, out, in, 1);
+        ch341SpiCs(out, true);
+        idx = CH341_PACKET_LENGTH;
+        out[idx++] = CH341A_CMD_SPI_STREAM;
+        out[idx++] = 0x40; // byte swapped command for Flash Page Write
+        tmp = add;
+        for (int i = 0; i < 3; ++i) { // starting address of next write
+            out[idx++] = swapByte((tmp >> 16) & 0xFF);
+            tmp <<= 8;
+        }
+        tmp = 0;
+        pkg_count = 1;
+        while ((idx < WRITE_PAYLOAD_LENGTH) && (len > tmp)) {
+            if (idx % CH341_PACKET_LENGTH == 0) {
+                out[idx++] = CH341A_CMD_SPI_STREAM;
+                pkg_count ++;
+            } else {
+                out[idx++] = swapByte(*buf++);
+                tmp++;
+            }
+        }
+        len -= tmp;
+        add += tmp;
+        bulkin_count = 0;
+        libusb_fill_bulk_transfer(xferBulkIn, devHandle, BULK_READ_ENDPOINT, in,
+                CH341_PACKET_LENGTH, cbBulkIn, NULL, DEFAULT_TIMEOUT);
+        libusb_submit_transfer(xferBulkIn);
+        libusb_fill_bulk_transfer(xferBulkOut, devHandle, BULK_WRITE_ENDPOINT, out,
+                idx, cbBulkOut, NULL, DEFAULT_TIMEOUT);
+        libusb_submit_transfer(xferBulkOut);
+        old_counter = bulkin_count;
+        ret = 0;
+        while (bulkin_count < pkg_count) {
+            libusb_handle_events_timeout(NULL, &tv);
+            if (bulkin_count == -1) { // encountered error
+                ret = -1;
+                break;
+            }
+            if (old_counter != bulkin_count) { // new package came
+                if (bulkin_count != pkg_count)
+                    libusb_submit_transfer(xferBulkIn);  // resubmit bulk in request
+                old_counter = bulkin_count;
+            }
+        }
+        if (ret < 0) break;
+        ch341SpiCs(out, false);
+        ret = usbTransfer(__func__, devHandle, BULK_WRITE_ENDPOINT, out, 3);
+        if (ret < 0) break;
+        out[0] = 0x04; // Write disable
+        ret = ch341SpiStream(devHandle, out, in, 1);
+        do {
+            ret = ch341ReadStatus(devHandle);
+            if (ret != 0)
+                libusb_handle_events_timeout(NULL, &tv);
+        } while(ret != 0);
     }
     libusb_free_transfer(xferBulkIn);
     libusb_free_transfer(xferBulkOut);

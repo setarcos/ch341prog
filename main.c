@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 #include "ch341a.h"
 
 int main(int argc, char* argv[])
@@ -36,16 +37,12 @@ int main(int argc, char* argv[])
     ret = ch341SetStream(devHandle, 1);
     if (ret < 0) goto out;
     //ch341SpiCapacity(devHandle);
-    ret = ch341EraseChip(devHandle);
-    if (ret < 0) goto out;
-    do {
-        sleep(1);
-        ret = ch341ReadStatus(devHandle);
-        if (ret < 0) goto out;
-        printf("%02x\n", ret);
-    } while(ret != 0);
-    ret = ch341SpiRead(devHandle, buf, 0, 200);
-    for (int i = 0; i < 200; ++i) {
+    //ret = ch341EraseChip(devHandle);
+    //for (int i = 0; i < 256; ++i) buf[i] = i;
+    //ret = ch341SpiWrite(devHandle, buf, 0, 512);
+    memset(buf, 1, 1024);
+    ret = ch341SpiRead(devHandle, buf, 0, 1024);
+    for (int i = 0; i < 1024; ++i) {
         if (i % 32 == 0) printf("\n");
         printf("%02x ", buf[i]);
     }
