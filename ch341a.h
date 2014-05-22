@@ -65,6 +65,9 @@ int32_t ch341SetStream(struct libusb_device_handle *devHandle, uint32_t speed);
 int32_t ch341SpiStream(struct libusb_device_handle *devHandle, uint8_t *out, uint8_t *in, uint32_t len);
 int32_t ch341SpiCapacity(struct libusb_device_handle *devHandle);
 int32_t ch341SpiRead(struct libusb_device_handle *devHandle, uint8_t *buf, uint32_t add, uint32_t len);
+int32_t ch341ReadStatus(struct libusb_device_handle *devHandle);
+int32_t ch341WriteStatus(struct libusb_device_handle *devHandle, uint8_t status);
+int32_t ch341EraseChip(struct libusb_device_handle *devHandle);
 int32_t ch341Release(struct libusb_device_handle *devHandle);
 uint8_t swapByte(uint8_t c);
 

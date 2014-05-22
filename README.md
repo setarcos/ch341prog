@@ -37,7 +37,6 @@ TODO List
  * find and configure ch341 (done).
  * read flash ID (done).
  * read flash contents (done).
- * read flash status register
- * clear flash
- * blank check
+ * read flash status register (done).
+ * clear flash (done).
  * write to flash memory

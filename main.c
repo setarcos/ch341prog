@@ -21,6 +21,7 @@
 #include <libusb-1.0/libusb.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "ch341a.h"
 
 int main(int argc, char* argv[])
@@ -34,13 +35,21 @@ int main(int argc, char* argv[])
         return -1;
     ret = ch341SetStream(devHandle, 1);
     if (ret < 0) goto out;
-    ch341SpiCapacity(devHandle);
-    ret = ch341SpiRead(devHandle, buf, 0, 8000);
+    //ch341SpiCapacity(devHandle);
+    ret = ch341EraseChip(devHandle);
     if (ret < 0) goto out;
-    for (int i = 0; i < 8888; ++i) {
+    do {
+        sleep(1);
+        ret = ch341ReadStatus(devHandle);
+        if (ret < 0) goto out;
+        printf("%02x\n", ret);
+    } while(ret != 0);
+    ret = ch341SpiRead(devHandle, buf, 0, 200);
+    for (int i = 0; i < 200; ++i) {
         if (i % 32 == 0) printf("\n");
         printf("%02x ", buf[i]);
     }
+    printf("\n");
 out:
     ch341Release(devHandle);
     return 0;

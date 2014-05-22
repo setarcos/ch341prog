@@ -186,6 +186,58 @@ int32_t ch341SpiCapacity(struct libusb_device_handle *devHandle)
     return in[3];
 }
 
+/* read status register */
+int32_t ch341ReadStatus(struct libusb_device_handle *devHandle)
+{
+    uint8_t out[2];
+    uint8_t in[2];
+    int32_t ret;
+
+    out[0] = 0x05; // Read status
+    ret = ch341SpiStream(devHandle, out, in, 2);
+    if (ret < 0) return ret;
+    return (in[1]);
+}
+
+/* write status register */
+int32_t ch341WriteStatus(struct libusb_device_handle *devHandle, uint8_t status)
+{
+    uint8_t out[2];
+    uint8_t in[2];
+    int32_t ret;
+
+    out[0] = 0x06; // Write enable
+    ret = ch341SpiStream(devHandle, out, in, 1);
+    if (ret < 0) return ret;
+    out[0] = 0x01; // Write status
+    out[1] = status;
+    ret = ch341SpiStream(devHandle, out, in, 2);
+    if (ret < 0) return ret;
+    out[0] = 0x04; // Write disable
+    ret = ch341SpiStream(devHandle, out, in, 1);
+    if (ret < 0) return ret;
+    return 0;
+}
+
+/* chip erase */
+int32_t ch341EraseChip(struct libusb_device_handle *devHandle)
+{
+    uint8_t out[1];
+    uint8_t in[1];
+    int32_t ret;
+
+    out[0] = 0x06; // Write enable
+    ret = ch341SpiStream(devHandle, out, in, 1);
+    if (ret < 0) return ret;
+    out[0] = 0xC7; // Chip erase
+    ret = ch341SpiStream(devHandle, out, in, 1);
+    if (ret < 0) return ret;
+    out[0] = 0x04; // Write disable
+    ret = ch341SpiStream(devHandle, out, in, 1);
+    if (ret < 0) return ret;
+    return 0;
+}
+
 /* callback for bulk out async transfer */
 void cbBulkOut(struct libusb_transfer *transfer)
 {
