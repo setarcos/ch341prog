@@ -218,9 +218,9 @@ int32_t ch341SpiRead(struct libusb_device_handle *devHandle, uint8_t *buf, uint3
     uint8_t out[CH341_MAX_PACKET_LEN];
     uint8_t in[CH341_PACKET_LENGTH];
 
-    /* what subtracted is: 1. first cs package, 2. leading command for every package, 3. leading 4 byte address  */
-    const uint32_t max_pkg_count = (CH341_MAX_PACKET_LEN / CH341_PACKET_LENGTH) + ((CH341_MAX_PACKET_LEN % CH341_PACKET_LENGTH) ? 1 : 0) - 1;
-    const uint32_t max_payload = CH341_MAX_PACKET_LEN - CH341_PACKET_LENGTH - (CH341_MAX_PACKET_LEN / CH341_PACKET_LENGTH) - ((CH341_MAX_PACKET_LEN % CH341_PACKET_LENGTH) ? 1 : 0) + 1 - 4;
+    /* what subtracted is: 1. first cs package, 2. leading command for every other packages,
+     * 3. second package contains read flash command and 3 bytes address */
+    const uint32_t max_payload = CH341_MAX_PACKET_LEN - CH341_PACKET_LENGTH - CH341_MAX_PACKETS + 1 - 4;
     uint32_t tmp, pkg_len, pkg_count;
     struct libusb_transfer *xferBulkIn, *xferBulkOut;
     uint32_t idx = 0;
@@ -229,7 +229,7 @@ int32_t ch341SpiRead(struct libusb_device_handle *devHandle, uint8_t *buf, uint3
     struct timeval tv = {0, 100};
 
     memset(out, 0xff, CH341_MAX_PACKET_LEN);
-    for (int i = 1; i < CH341_MAX_PACKET_LEN / CH341_PACKET_LENGTH + 1; ++i)
+    for (int i = 1; i < CH341_MAX_PACKETS; ++i) // fill CH341A_CMD_SPI_STREAM for every packet
         out[i * CH341_PACKET_LENGTH] = CH341A_CMD_SPI_STREAM;
     memset(in, 0x00, CH341_PACKET_LENGTH);
     xferBulkIn  = libusb_alloc_transfer(0);
@@ -241,12 +241,12 @@ int32_t ch341SpiRead(struct libusb_device_handle *devHandle, uint8_t *buf, uint3
         out[idx++] = 0xC0; // byte swapped command for Flash Read
         tmp = add;
         for (int i = 0; i < 3; ++i) { // starting address of next read
-            out[idx++] = swapByte((tmp >> 24) & 0xFF);
+            out[idx++] = swapByte((tmp >> 16) & 0xFF);
             tmp <<= 8;
         }
         if (len > max_payload) {
             pkg_len = CH341_MAX_PACKET_LEN;
-            pkg_count = max_pkg_count;
+            pkg_count = CH341_MAX_PACKETS - 1;
             len -= max_payload;
             add += max_payload;
         } else {
@@ -258,6 +258,7 @@ int32_t ch341SpiRead(struct libusb_device_handle *devHandle, uint8_t *buf, uint3
         bulkin_count = 0;
         libusb_fill_bulk_transfer(xferBulkIn, devHandle, BULK_READ_ENDPOINT, in,
                 CH341_PACKET_LENGTH, cbBulkIn, buf, DEFAULT_TIMEOUT);
+        buf += max_payload; // advance user's pointer
         libusb_submit_transfer(xferBulkIn);
         libusb_fill_bulk_transfer(xferBulkOut, devHandle, BULK_WRITE_ENDPOINT, out,
                 pkg_len, cbBulkOut, NULL, DEFAULT_TIMEOUT);

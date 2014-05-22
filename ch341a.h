@@ -28,7 +28,8 @@ extern "C" {
 #define     BULK_READ_ENDPOINT     0x82
 
 #define     CH341_PACKET_LENGTH    0x20
-#define     CH341_MAX_PACKET_LEN   8192
+#define     CH341_MAX_PACKETS      256
+#define     CH341_MAX_PACKET_LEN   (CH341_PACKET_LENGTH * CH341_MAX_PACKETS)
 #define     CH341A_USB_VENDOR      0x1A86
 #define     CH341A_USB_PRODUCT     0x5512
 
