@@ -183,7 +183,7 @@ int32_t ch341SpiStream(uint8_t *out, uint8_t *in, uint32_t len)
 }
 
 /* read the JEDEC ID of the SPI Flash */
-int32_t ch341SpiCapacity()
+int32_t ch341SpiCapacity(void)
 {
     uint8_t out[4];
     uint8_t in[4], *ptr;
@@ -203,7 +203,7 @@ int32_t ch341SpiCapacity()
 }
 
 /* read status register */
-int32_t ch341ReadStatus()
+int32_t ch341ReadStatus(void)
 {
     uint8_t out[2];
     uint8_t in[2];
@@ -238,7 +238,7 @@ int32_t ch341WriteStatus(uint8_t status)
 }
 
 /* chip erase */
-int32_t ch341EraseChip()
+int32_t ch341EraseChip(void)
 {
     uint8_t out[1];
     uint8_t in[1];
@@ -433,7 +433,7 @@ int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len)
         out[0] = 0x04; // Write disable
         ret = ch341SpiStream(out, in, 1);
         do {
-            ret = ch341ReadStatus(devHandle);
+            ret = ch341ReadStatus();
             if (ret != 0)
                 libusb_handle_events_timeout(NULL, &tv);
         } while(ret != 0);
