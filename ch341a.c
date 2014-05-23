@@ -341,7 +341,7 @@ int32_t ch341SpiRead(struct libusb_device_handle *devHandle, uint8_t *buf, uint3
 }
 
 #define WRITE_PAYLOAD_LENGTH 301 // 301 is the length of a page(256)'s data with protocol overhead 
-/* write buffer(*buf) to SPI flash, address(add) should on the boundary of a page  */
+/* write buffer(*buf) to SPI flash */
 int32_t ch341SpiWrite(struct libusb_device_handle *devHandle, uint8_t *buf, uint32_t add, uint32_t len)
 {
     uint8_t out[WRITE_PAYLOAD_LENGTH];
@@ -378,6 +378,8 @@ int32_t ch341SpiWrite(struct libusb_device_handle *devHandle, uint8_t *buf, uint
             } else {
                 out[idx++] = swapByte(*buf++);
                 tmp++;
+                if (((add + tmp) & 0xFF) == 0) // cross page boundary
+                    break;
             }
         }
         len -= tmp;
