@@ -27,39 +27,43 @@
 #include "ch341a.h"
 
 int32_t bulkin_count;
+struct libusb_device_handle *devHandle = NULL;
 
 /* Configure CH341A, find the device and set the default interface. */
-struct libusb_device_handle *ch341Configure(uint16_t vid, uint16_t pid)
+int32_t ch341Configure(uint16_t vid, uint16_t pid)
 { 
     struct libusb_device *dev;
-    struct libusb_device_handle *devHandle;
     int32_t ret;
 
     uint8_t  desc[0x12];
 
+    if (devHandle != NULL) {
+        fprintf(stderr, "Call ch341Release before re-configure\n");
+        return -1;
+    }
     ret = libusb_init(NULL);
     if(ret < 0) {
         fprintf(stderr, "Couldnt initialise libusb\n");
-        return NULL;
+        return -1;
     }
 
     libusb_set_debug(NULL, 3);
     
     if(!(devHandle = libusb_open_device_with_vid_pid(NULL, vid, pid))) {
         fprintf(stderr, "Couldn't open device [%04x:%04x].\n", vid, pid);
-        return NULL;
+        return -1;
     }
  
     if(!(dev = libusb_get_device(devHandle))) {
         fprintf(stderr, "Couldn't get bus number and address.\n");
-        return NULL;
+        goto close_handle;
     }
 
     if(libusb_kernel_driver_active(devHandle, 0)) {
         ret = libusb_detach_kernel_driver(devHandle, 0);
         if(ret) {
             fprintf(stderr, "Failed to detach kernel driver: '%s'\n", strerror(-ret));
-            return NULL;
+            goto close_handle;
         }
     }
     
@@ -67,34 +71,43 @@ struct libusb_device_handle *ch341Configure(uint16_t vid, uint16_t pid)
 
     if(ret) {
         fprintf(stderr, "Failed to claim interface 0: '%s'\n", strerror(-ret));
-        return NULL;
+        goto close_handle;
     }
     
     ret = libusb_get_descriptor(devHandle, LIBUSB_DT_DEVICE, 0x00, desc, 0x12);
 
     if(ret < 0) {
         fprintf(stderr, "Failed to get device descriptor: '%s'\n", strerror(-ret));
-        return NULL;
+        goto release_interface;
     }
     
     printf("Device reported its revision [%d.%02d]\n", desc[12], desc[13]);
-    return devHandle;
+    return 0;
+release_interface:
+    libusb_release_interface(devHandle, 0);
+close_handle:
+    libusb_close(devHandle);
+    devHandle = NULL;
+    return -1;
 }
 
 /* release libusb structure and ready to exit */
-int32_t ch341Release(struct libusb_device_handle *devHandle)
+int32_t ch341Release(void)
 {
+    if (devHandle == NULL) return -1;
     libusb_release_interface(devHandle, 0);
     libusb_close(devHandle);
     libusb_exit(NULL);
+    devHandle = NULL;
     return 0;
 }
 
 /* Helper function for libusb_bulk_transfer, display error message with the caller name */
-int32_t usbTransfer(const char * func, struct libusb_device_handle *devHandle, uint8_t type, uint8_t* buf, int len)
+int32_t usbTransfer(const char * func, uint8_t type, uint8_t* buf, int len)
 {
     int32_t ret;
     int transfered;
+    if (devHandle == NULL) return -1;
     ret = libusb_bulk_transfer(devHandle, type, buf, len, &transfered, DEFAULT_TIMEOUT);
     if (ret < 0) {
         fprintf(stderr, "%s: Failed to %s %d bytes '%s'\n", func,
@@ -106,14 +119,15 @@ int32_t usbTransfer(const char * func, struct libusb_device_handle *devHandle, u
 
 /*   set the i2c bus speed (speed(b1b0): 0 = 20kHz; 1 = 100kHz, 2 = 400kHz, 3 = 750kHz)
  *   set the spi bus data width(speed(b2): 0 = Single, 1 = Double)  */
-int32_t ch341SetStream(struct libusb_device_handle *devHandle, uint32_t speed) {
+int32_t ch341SetStream(uint32_t speed) {
     uint8_t buf[3];
 
+    if (devHandle == NULL) return -1;
     buf[0] = CH341A_CMD_I2C_STREAM;
     buf[1] = CH341A_CMD_I2C_STM_SET | (speed & 0x7);
     buf[2] = CH341A_CMD_I2C_STM_END;
 
-    return usbTransfer(__func__, devHandle, BULK_WRITE_ENDPOINT, buf, 3);
+    return usbTransfer(__func__, BULK_WRITE_ENDPOINT, buf, 3);
 }
 
 /* ch341 requres LSB first, swap the bit order before send and after receive  */
@@ -140,11 +154,12 @@ void ch341SpiCs(uint8_t *ptr, bool selected)
 }
 
 /* transfer len bytes of data to the spi device */
-int32_t ch341SpiStream(struct libusb_device_handle *devHandle, uint8_t *out, uint8_t *in, uint32_t len)
+int32_t ch341SpiStream(uint8_t *out, uint8_t *in, uint32_t len)
 {
     uint8_t outBuf[CH341_MAX_PACKET_LEN], *ptr;
     int32_t ret;
 
+    if (devHandle == NULL) return -1;
     if (len > CH341_MAX_PACKET_LEN - CH341_PACKET_LENGTH)
         return -1;
     ch341SpiCs(outBuf, true);
@@ -152,9 +167,9 @@ int32_t ch341SpiStream(struct libusb_device_handle *devHandle, uint8_t *out, uin
     *ptr++ = CH341A_CMD_SPI_STREAM;
     for (int i = 0; i < len; ++i)
         *ptr++ = swapByte(*out++);
-    ret = usbTransfer(__func__, devHandle, BULK_WRITE_ENDPOINT, outBuf, len + CH341_PACKET_LENGTH + 1);
+    ret = usbTransfer(__func__, BULK_WRITE_ENDPOINT, outBuf, len + CH341_PACKET_LENGTH + 1);
     if (ret < 0) return -1;
-    ret = usbTransfer(__func__, devHandle, BULK_READ_ENDPOINT, in, len);
+    ret = usbTransfer(__func__, BULK_READ_ENDPOINT, in, len);
     if (ret < 0) return -1;
     ptr = in;
     for (int i = 0; i < ret; ++i) { // swap the buffer
@@ -162,23 +177,24 @@ int32_t ch341SpiStream(struct libusb_device_handle *devHandle, uint8_t *out, uin
         ptr++;
     }
     ch341SpiCs(outBuf, false);
-    ret = usbTransfer(__func__, devHandle, BULK_WRITE_ENDPOINT, outBuf, 3);
+    ret = usbTransfer(__func__, BULK_WRITE_ENDPOINT, outBuf, 3);
     if (ret < 0) return -1;
     return 0;
 }
 
 /* read the JEDEC ID of the SPI Flash */
-int32_t ch341SpiCapacity(struct libusb_device_handle *devHandle)
+int32_t ch341SpiCapacity()
 {
     uint8_t out[4];
     uint8_t in[4], *ptr;
     int32_t ret;
 
+    if (devHandle == NULL) return -1;
     ptr = out;
     *ptr++ = 0x9F; // Read JEDEC ID
     for (int i = 0; i < 3; ++i)
         *ptr++ = 0x00;
-    ret = ch341SpiStream(devHandle, out, in, 4);
+    ret = ch341SpiStream(out, in, 4);
     if (ret < 0) return ret;
     printf("Manufacturer ID: %02x\n", in[1]);
     printf("Memory Type: %02x\n", in[2]);
@@ -187,53 +203,56 @@ int32_t ch341SpiCapacity(struct libusb_device_handle *devHandle)
 }
 
 /* read status register */
-int32_t ch341ReadStatus(struct libusb_device_handle *devHandle)
+int32_t ch341ReadStatus()
 {
     uint8_t out[2];
     uint8_t in[2];
     int32_t ret;
 
+    if (devHandle == NULL) return -1;
     out[0] = 0x05; // Read status
-    ret = ch341SpiStream(devHandle, out, in, 2);
+    ret = ch341SpiStream(out, in, 2);
     if (ret < 0) return ret;
     return (in[1]);
 }
 
 /* write status register */
-int32_t ch341WriteStatus(struct libusb_device_handle *devHandle, uint8_t status)
+int32_t ch341WriteStatus(uint8_t status)
 {
     uint8_t out[2];
     uint8_t in[2];
     int32_t ret;
 
+    if (devHandle == NULL) return -1;
     out[0] = 0x06; // Write enable
-    ret = ch341SpiStream(devHandle, out, in, 1);
+    ret = ch341SpiStream(out, in, 1);
     if (ret < 0) return ret;
     out[0] = 0x01; // Write status
     out[1] = status;
-    ret = ch341SpiStream(devHandle, out, in, 2);
+    ret = ch341SpiStream(out, in, 2);
     if (ret < 0) return ret;
     out[0] = 0x04; // Write disable
-    ret = ch341SpiStream(devHandle, out, in, 1);
+    ret = ch341SpiStream(out, in, 1);
     if (ret < 0) return ret;
     return 0;
 }
 
 /* chip erase */
-int32_t ch341EraseChip(struct libusb_device_handle *devHandle)
+int32_t ch341EraseChip()
 {
     uint8_t out[1];
     uint8_t in[1];
     int32_t ret;
 
+    if (devHandle == NULL) return -1;
     out[0] = 0x06; // Write enable
-    ret = ch341SpiStream(devHandle, out, in, 1);
+    ret = ch341SpiStream(out, in, 1);
     if (ret < 0) return ret;
     out[0] = 0xC7; // Chip erase
-    ret = ch341SpiStream(devHandle, out, in, 1);
+    ret = ch341SpiStream(out, in, 1);
     if (ret < 0) return ret;
     out[0] = 0x04; // Write disable
-    ret = ch341SpiStream(devHandle, out, in, 1);
+    ret = ch341SpiStream(out, in, 1);
     if (ret < 0) return ret;
     return 0;
 }
@@ -267,11 +286,12 @@ void cbBulkIn(struct libusb_transfer *transfer)
 }
 
 /* read the content of SPI device to buf, make sure the buf is big enough before call  */
-int32_t ch341SpiRead(struct libusb_device_handle *devHandle, uint8_t *buf, uint32_t add, uint32_t len)
+int32_t ch341SpiRead(uint8_t *buf, uint32_t add, uint32_t len)
 {
     uint8_t out[CH341_MAX_PACKET_LEN];
     uint8_t in[CH341_PACKET_LENGTH];
 
+    if (devHandle == NULL) return -1;
     /* what subtracted is: 1. first cs package, 2. leading command for every other packages,
      * 3. second package contains read flash command and 3 bytes address */
     const uint32_t max_payload = CH341_MAX_PACKET_LEN - CH341_PACKET_LENGTH - CH341_MAX_PACKETS + 1 - 4;
@@ -332,7 +352,7 @@ int32_t ch341SpiRead(struct libusb_device_handle *devHandle, uint8_t *buf, uint3
             }
         }
         ch341SpiCs(out, false);
-        ret = usbTransfer(__func__, devHandle, BULK_WRITE_ENDPOINT, out, 3);
+        ret = usbTransfer(__func__, BULK_WRITE_ENDPOINT, out, 3);
         if (ret < 0) break;
     }
     libusb_free_transfer(xferBulkIn);
@@ -342,7 +362,7 @@ int32_t ch341SpiRead(struct libusb_device_handle *devHandle, uint8_t *buf, uint3
 
 #define WRITE_PAYLOAD_LENGTH 301 // 301 is the length of a page(256)'s data with protocol overhead 
 /* write buffer(*buf) to SPI flash */
-int32_t ch341SpiWrite(struct libusb_device_handle *devHandle, uint8_t *buf, uint32_t add, uint32_t len)
+int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len)
 {
     uint8_t out[WRITE_PAYLOAD_LENGTH];
     uint8_t in[CH341_PACKET_LENGTH];
@@ -353,13 +373,14 @@ int32_t ch341SpiWrite(struct libusb_device_handle *devHandle, uint8_t *buf, uint
     int32_t old_counter;
     struct timeval tv = {0, 100};
 
+    if (devHandle == NULL) return -1;
     memset(out, 0xff, WRITE_PAYLOAD_LENGTH);
     xferBulkIn  = libusb_alloc_transfer(0);
     xferBulkOut = libusb_alloc_transfer(0);
 
     while (len > 0) {
         out[0] = 0x06; // Write enable
-        ret = ch341SpiStream(devHandle, out, in, 1);
+        ret = ch341SpiStream(out, in, 1);
         ch341SpiCs(out, true);
         idx = CH341_PACKET_LENGTH;
         out[idx++] = CH341A_CMD_SPI_STREAM;
@@ -407,10 +428,10 @@ int32_t ch341SpiWrite(struct libusb_device_handle *devHandle, uint8_t *buf, uint
         }
         if (ret < 0) break;
         ch341SpiCs(out, false);
-        ret = usbTransfer(__func__, devHandle, BULK_WRITE_ENDPOINT, out, 3);
+        ret = usbTransfer(__func__, BULK_WRITE_ENDPOINT, out, 3);
         if (ret < 0) break;
         out[0] = 0x04; // Write disable
-        ret = ch341SpiStream(devHandle, out, in, 1);
+        ret = ch341SpiStream(out, in, 1);
         do {
             ret = ch341ReadStatus(devHandle);
             if (ret != 0)

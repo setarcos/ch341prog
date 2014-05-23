@@ -58,18 +58,23 @@ extern "C" {
 #define     CH341A_CMD_UIO_STM_US  0xC0
 #define     CH341A_CMD_UIO_STM_END 0x20
 
+#define     CH341A_STM_I2C_20K     0x00
+#define     CH341A_STM_I2C_100K    0x01
+#define     CH341A_STM_I2C_400K    0x02
+#define     CH341A_STM_I2C_750K    0x03
+#define     CH341A_STM_SPI_DBL     0x04
 
-int32_t usbTransfer(const char * func, struct libusb_device_handle *devHandle, uint8_t type, uint8_t* buf, int len);
-struct libusb_device_handle *ch341Configure(uint16_t vid, uint16_t pid);
-int32_t ch341SetStream(struct libusb_device_handle *devHandle, uint32_t speed);
-int32_t ch341SpiStream(struct libusb_device_handle *devHandle, uint8_t *out, uint8_t *in, uint32_t len);
-int32_t ch341SpiCapacity(struct libusb_device_handle *devHandle);
-int32_t ch341SpiRead(struct libusb_device_handle *devHandle, uint8_t *buf, uint32_t add, uint32_t len);
-int32_t ch341ReadStatus(struct libusb_device_handle *devHandle);
-int32_t ch341WriteStatus(struct libusb_device_handle *devHandle, uint8_t status);
-int32_t ch341EraseChip(struct libusb_device_handle *devHandle);
-int32_t ch341SpiWrite(struct libusb_device_handle *devHandle, uint8_t *buf, uint32_t add, uint32_t len);
-int32_t ch341Release(struct libusb_device_handle *devHandle);
+int32_t usbTransfer(const char * func, uint8_t type, uint8_t* buf, int len);
+int32_t ch341Configure(uint16_t vid, uint16_t pid);
+int32_t ch341SetStream(uint32_t speed);
+int32_t ch341SpiStream(uint8_t *out, uint8_t *in, uint32_t len);
+int32_t ch341SpiCapacity();
+int32_t ch341SpiRead(uint8_t *buf, uint32_t add, uint32_t len);
+int32_t ch341ReadStatus();
+int32_t ch341WriteStatus(uint8_t status);
+int32_t ch341EraseChip();
+int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len);
+int32_t ch341Release();
 uint8_t swapByte(uint8_t c);
 
 #ifdef __cplusplus                              
