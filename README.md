@@ -40,4 +40,9 @@ TODO List
  * read flash status register (done).
  * clear flash (done).
  * write to flash memory (done).
- * command line user interface
+ * command line user interface (done).
+
+Speed Test
+-----------
+ * read a 8M flash(W25Q64) cost 101.840s
+ * write to an 8M flash(W25Q64) cost 158.811s
