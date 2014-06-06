@@ -24,16 +24,26 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <signal.h>
 #include "ch341a.h"
 
 int32_t bulkin_count;
 struct libusb_device_handle *devHandle = NULL;
+struct sigaction saold;
+int force_stop = 0;
+
+/* SIGINT handler */
+void sig_int(int signo)
+{
+    force_stop = 1;
+}
 
 /* Configure CH341A, find the device and set the default interface. */
 int32_t ch341Configure(uint16_t vid, uint16_t pid)
 { 
     struct libusb_device *dev;
     int32_t ret;
+    struct sigaction sa;
 
     uint8_t  desc[0x12];
 
@@ -82,6 +92,12 @@ int32_t ch341Configure(uint16_t vid, uint16_t pid)
     }
     
     printf("Device reported its revision [%d.%02d]\n", desc[12], desc[13]);
+    sa.sa_handler = &sig_int;
+    sa.sa_flags = SA_RESTART;
+    sigfillset(&sa.sa_mask);
+    if (sigaction(SIGINT, &sa, &saold) == -1) {
+        perror("Error: cannot handle SIGINT"); // Should not happen
+    }
     return 0;
 release_interface:
     libusb_release_interface(devHandle, 0);
@@ -99,6 +115,7 @@ int32_t ch341Release(void)
     libusb_close(devHandle);
     libusb_exit(NULL);
     devHandle = NULL;
+    sigaction(SIGINT, &saold, NULL);
     return 0;
 }
 
@@ -354,6 +371,12 @@ int32_t ch341SpiRead(uint8_t *buf, uint32_t add, uint32_t len)
         ch341SpiCs(out, false);
         ret = usbTransfer(__func__, BULK_WRITE_ENDPOINT, out, 3);
         if (ret < 0) break;
+        if (force_stop == 1) { // user hit ctrl+C
+            force_stop = 0;
+            if (len > 0)
+                fprintf(stderr, "User hit Ctrl+C, reading unfinished.\n");
+            break;
+        }
     }
     libusb_free_transfer(xferBulkIn);
     libusb_free_transfer(xferBulkOut);
@@ -437,6 +460,12 @@ int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len)
             if (ret != 0)
                 libusb_handle_events_timeout(NULL, &tv);
         } while(ret != 0);
+        if (force_stop == 1) { // user hit ctrl+C
+            force_stop = 0;
+            if (len > 0)
+                fprintf(stderr, "User hit Ctrl+C, writing unfinished.\n");
+            break;
+        }
     }
     libusb_free_transfer(xferBulkIn);
     libusb_free_transfer(xferBulkOut);
