@@ -1,6 +1,6 @@
 Ch341Prog
 ============
-A simple programmer based on ch341a multi-functional chip.
+A simple command line tool(programmer) interfacing with ch341a under Linux OS.
 
 Description
 ------------
@@ -31,16 +31,6 @@ You should have received a copy of the GNU General Public License along
 with this program.
 
 If not, see <http://www.gnu.org/licenses/>.
-
-TODO List
-------------
- * find and configure ch341 (done).
- * read flash ID (done).
- * read flash contents (done).
- * read flash status register (done).
- * clear flash (done).
- * write to flash memory (done).
- * command line user interface (done).
 
 Speed Test
 -----------
