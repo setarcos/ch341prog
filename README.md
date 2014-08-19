@@ -16,7 +16,7 @@ got so far.
 
 Special thanks to asbokid, the ch341eepromtool's author.
 
-Licence
+License
 ------------
 This is free software: you can redistribute it and/or modify it under
 the terms of the latest GNU General Public License as published by the
@@ -28,11 +28,9 @@ or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 for more details.
 
 You should have received a copy of the GNU General Public License along
-with this program.
-
-If not, see <http://www.gnu.org/licenses/>.
+with this program. If not, see <http://www.gnu.org/licenses/>.
 
 Speed Test
 -----------
- * read a 8M flash(W25Q64) cost 101.840s
- * write to an 8M flash(W25Q64) cost 158.811s
+ * read a 8M flash(W25Q64) costs 101.840 seconds
+ * write to an 8M flash(W25Q64) costs 158.811 seconds
