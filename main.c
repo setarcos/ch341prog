@@ -33,47 +33,53 @@ int main(int argc, char* argv[])
     FILE *fp;
     char *filename;
     int cap;
+    int length = 0;
     char op = 0;
+    int8_t c;
 
     const char usage[] =
         "\nUsage:\n"\
         " -h, --help             display this message\n"\
         " -i, --info             read the chip ID info\n"\
         " -e, --erase            erase the entire chip\n"\
+        " -l, --length <bytes>   manualy set length\n"\
         " -w, --write <filename> write chip with data from filename\n"\
         " -r, --read <filename>  read chip and save data to filename\n";
     const struct option options[] = {
         {"help",    no_argument,        0, 'h'},
         {"erase",   no_argument,        0, 'e'},
         {"write",   required_argument,  0, 'w'},
+        {"length",   required_argument,  0, 'l'},
         {"read",    required_argument,  0, 'r'},
         {0, 0, 0, 0}};
 
-    while (1) {
         int32_t optidx = 0;
-        int8_t c = getopt_long(argc, argv, "hiew:r:", options, &optidx);
-        if (c == -1) break;
-        switch (c) {
-            case 'i':
-            case 'e':
-                if (!op)
-                    op = c;
-                else
-                    op = 'x';
-                break;
-            case 'w':
-            case 'r':
-                if (!op) {
-                    op = c;
-                    filename = (char*) malloc(strlen(optarg) + 1);
-                    strcpy(filename, optarg);
-                } else
-                    op = 'x';
-                break;
-            default:
-                printf("%s\n", usage);
-                return 0;
-        }
+
+        while ((c = getopt_long(argc, argv, "hiew:r:l:", options, &optidx)) != -1){
+            switch (c) {
+                case 'i':
+                case 'e':
+                    if (!op)
+                        op = c;
+                    else
+                        op = 'x';
+                    break;
+                case 'w':
+                case 'r':
+                    if (!op) {
+                        op = c;
+                        filename = (char*) malloc(strlen(optarg) + 1);
+                        strcpy(filename, optarg);
+                    } else
+                        op = 'x';
+                    break;
+		case 'l':
+		    length = atoi(optarg);
+		    break;
+                default:
+                    printf("%s\n", usage);
+                    return 0;
+            }
     }
     if (op == 0) {
         fprintf(stderr, "%s\n", usage);
@@ -92,6 +98,10 @@ int main(int argc, char* argv[])
     if (ret < 0) goto out;
     cap = 1 << ret;
     printf("Chip capacity is %d\n", cap);
+
+    if (length != 0){
+	cap = length;
+    }
     if (op == 'i') goto out;
     if (op == 'e') {
         uint8_t timeout = 0;
