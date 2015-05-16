@@ -53,7 +53,7 @@ int32_t ch341Configure(uint16_t vid, uint16_t pid)
     }
     ret = libusb_init(NULL);
     if(ret < 0) {
-        fprintf(stderr, "Couldnt initialise libusb\n");
+        fprintf(stderr, "Couldn't initialise libusb\n");
         return -1;
     }
 

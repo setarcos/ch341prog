@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
         " -h, --help             display this message\n"\
         " -i, --info             read the chip ID info\n"\
         " -e, --erase            erase the entire chip\n"\
-        " -l, --length <bytes>   manualy set length\n"\
+        " -l, --length <bytes>   manually set length\n"\
         " -w, --write <filename> write chip with data from filename\n"\
         " -r, --read <filename>  read chip and save data to filename\n";
     const struct option options[] = {
@@ -86,7 +86,7 @@ int main(int argc, char* argv[])
         return 0;
     }
     if (op == 'x') {
-        fprintf(stderr, "Conflicting options, only one option a time.\n");
+        fprintf(stderr, "Conflicting options, only one option at a time.\n");
         return -1;
     }
     ret = ch341Configure(CH341A_USB_VENDOR, CH341A_USB_PRODUCT);
