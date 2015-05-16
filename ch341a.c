@@ -223,7 +223,7 @@ int32_t ch341SpiCapacity(void)
     if (devHandle == NULL) return -1;
     ptr = out;
     *ptr++ = 0x9F; // Read JEDEC ID
-    for (int i = 0; i < JEDEC_ID_LEN; ++i)
+    for (int i = 0; i < JEDEC_ID_LEN-1; ++i)
         *ptr++ = 0x00;
 
     ret = ch341SpiStream(out, in, JEDEC_ID_LEN);
