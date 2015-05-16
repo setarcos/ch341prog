@@ -23,7 +23,7 @@
 #ifdef __cplusplus                              
 extern "C" {
 #endif
-#define     DEFAULT_TIMEOUT        300     // 300mS for USB timeouts
+#define     DEFAULT_TIMEOUT        1000     // 300mS for USB timeouts
 #define     BULK_WRITE_ENDPOINT    0x02
 #define     BULK_READ_ENDPOINT     0x82
 
