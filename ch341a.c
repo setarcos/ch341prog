@@ -173,26 +173,39 @@ void ch341SpiCs(uint8_t *ptr, bool selected)
 /* transfer len bytes of data to the spi device */
 int32_t ch341SpiStream(uint8_t *out, uint8_t *in, uint32_t len)
 {
-    uint8_t outBuf[CH341_MAX_PACKET_LEN], *ptr;
-    int32_t ret;
+    uint8_t inBuf[CH341_PACKET_LENGTH], outBuf[CH341_PACKET_LENGTH], *inPtr, *outPtr;
+    int32_t ret, packetLen;
+    bool done;
 
     if (devHandle == NULL) return -1;
-    if (len > CH341_MAX_PACKET_LEN - CH341_PACKET_LENGTH)
-        return -1;
+
     ch341SpiCs(outBuf, true);
-    ptr = outBuf + CH341_PACKET_LENGTH; // don't care what's after CH341A_CMD_UIO_STM_END
-    *ptr++ = CH341A_CMD_SPI_STREAM;
-    for (int i = 0; i < len; ++i)
-        *ptr++ = swapByte(*out++);
-    ret = usbTransfer(__func__, BULK_WRITE_ENDPOINT, outBuf, len + CH341_PACKET_LENGTH + 1);
+    ret = usbTransfer(__func__, BULK_WRITE_ENDPOINT, outBuf, 4);
     if (ret < 0) return -1;
-    ret = usbTransfer(__func__, BULK_READ_ENDPOINT, in, len);
-    if (ret < 0) return -1;
-    ptr = in;
-    for (int i = 0; i < ret; ++i) { // swap the buffer
-        *ptr = swapByte(*ptr);
-        ptr++;
-    }
+
+    inPtr = in;
+
+    do {
+        done=true;
+        packetLen=len+1;    // STREAM COMMAND + data length
+        if (packetLen>CH341_PACKET_LENGTH) {
+            packetLen=CH341_PACKET_LENGTH;
+            done=false;
+        }
+        outPtr = outBuf;
+        *outPtr++ = CH341A_CMD_SPI_STREAM;
+        for (int i = 0; i < packetLen-1; ++i)
+            *outPtr++ = swapByte(*out++);
+        ret = usbTransfer(__func__, BULK_WRITE_ENDPOINT, outBuf, packetLen);
+        if (ret < 0) return -1;
+        ret = usbTransfer(__func__, BULK_READ_ENDPOINT, inBuf, packetLen-1);
+        if (ret < 0) return -1;
+        len -= ret;
+
+        for (int i = 0; i < ret; ++i) // swap the buffer
+            *inPtr++ = swapByte(inBuf[i]);
+    } while (!done);
+
     ch341SpiCs(outBuf, false);
     ret = usbTransfer(__func__, BULK_WRITE_ENDPOINT, outBuf, 3);
     if (ret < 0) return -1;
