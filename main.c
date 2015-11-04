@@ -155,8 +155,9 @@ int main(int argc, char* argv[])
                 fclose(fp);
             goto out;
         }
+        fprintf(stderr, "File Size is [%d]\n", ret);
         fclose(fp);
-        ret = ch341SpiWrite(buf, 0, cap);
+        ret = ch341SpiWrite(buf, 0, ret);
     }
 out:
     ch341Release();
