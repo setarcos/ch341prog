@@ -20,10 +20,10 @@
 #ifndef __CH341_H__
 #define __CH341_H__
 
-#ifdef __cplusplus                              
+#ifdef __cplusplus
 extern "C" {
 #endif
-#define     DEFAULT_TIMEOUT        1000     // 300mS for USB timeouts
+#define     DEFAULT_TIMEOUT        1000     // 1000mS for USB timeouts
 #define     BULK_WRITE_ENDPOINT    0x02
 #define     BULK_READ_ENDPOINT     0x82
 
@@ -77,7 +77,7 @@ int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len);
 int32_t ch341Release(void);
 uint8_t swapByte(uint8_t c);
 
-#ifdef __cplusplus                              
+#ifdef __cplusplus
 }
 #endif
 
