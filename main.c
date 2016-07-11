@@ -54,8 +54,8 @@ int main(int argc, char* argv[])
         {"write",   required_argument,  0, 'w'},
         {"length",   required_argument,  0, 'l'},
         {"read",    required_argument,  0, 'r'},
-	{"turbo",   no_argument,  0, 't'},
-	{"double",  no_argument,  0, 'd'},
+        {"turbo",   no_argument,  0, 't'},
+        {"double",  no_argument,  0, 'd'},
         {0, 0, 0, 0}};
 
         int32_t optidx = 0;
@@ -110,7 +110,7 @@ int main(int argc, char* argv[])
     ret = ch341SpiCapacity();
     if (ret < 0) goto out;
     cap = 1 << ret;
-    printf("Chip capacity is %d\n", cap);
+    printf("Chip capacity is %d bytes\n", cap);
 
     if (length != 0){
 	cap = length;

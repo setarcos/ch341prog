@@ -40,7 +40,7 @@ void sig_int(int signo)
 
 /* Configure CH341A, find the device and set the default interface. */
 int32_t ch341Configure(uint16_t vid, uint16_t pid)
-{ 
+{
     struct libusb_device *dev;
     int32_t ret;
     struct sigaction sa;
@@ -58,12 +58,12 @@ int32_t ch341Configure(uint16_t vid, uint16_t pid)
     }
 
     libusb_set_debug(NULL, 3);
-    
+
     if(!(devHandle = libusb_open_device_with_vid_pid(NULL, vid, pid))) {
         fprintf(stderr, "Couldn't open device [%04x:%04x].\n", vid, pid);
         return -1;
     }
- 
+
     if(!(dev = libusb_get_device(devHandle))) {
         fprintf(stderr, "Couldn't get bus number and address.\n");
         goto close_handle;
@@ -76,21 +76,21 @@ int32_t ch341Configure(uint16_t vid, uint16_t pid)
             goto close_handle;
         }
     }
-    
+
     ret = libusb_claim_interface(devHandle, 0);
 
     if(ret) {
         fprintf(stderr, "Failed to claim interface 0: '%s'\n", strerror(-ret));
         goto close_handle;
     }
-    
+
     ret = libusb_get_descriptor(devHandle, LIBUSB_DT_DEVICE, 0x00, desc, 0x12);
 
     if(ret < 0) {
         fprintf(stderr, "Failed to get device descriptor: '%s'\n", strerror(-ret));
         goto release_interface;
     }
-    
+
     printf("Device reported its revision [%d.%02d]\n", desc[12], desc[13]);
     sa.sa_handler = &sig_int;
     sa.sa_flags = SA_RESTART;
@@ -343,6 +343,10 @@ int32_t ch341SpiRead(uint8_t *buf, uint32_t add, uint32_t len)
     uint32_t ret;
     int32_t old_counter;
     struct timeval tv = {0, 100};
+    uint32_t previous_mbytes_size = 0;
+    uint32_t current_kbytes_size = 0;
+    uint32_t current_mbytes_size = 0;
+    uint32_t readable_mbytes_size = 0;
 
     memset(out, 0xff, CH341_MAX_PACKET_LEN);
     for (int i = 1; i < CH341_MAX_PACKETS; ++i) // fill CH341A_CMD_SPI_STREAM for every packet
@@ -351,7 +355,19 @@ int32_t ch341SpiRead(uint8_t *buf, uint32_t add, uint32_t len)
     xferBulkIn  = libusb_alloc_transfer(0);
     xferBulkOut = libusb_alloc_transfer(0);
 
+    current_kbytes_size = len / 1024;
+    current_mbytes_size = len / 1048576;
+    previous_mbytes_size = current_mbytes_size;
+
+    printf("Try to read %i KBytes...\n", current_kbytes_size);
     while (len > 0) {
+        //if (len % 1048576)
+        current_mbytes_size = len / 1048676;
+        if (current_mbytes_size != previous_mbytes_size) {
+          readable_mbytes_size = current_mbytes_size + 1;
+          printf("Mbytes left: %i\n", readable_mbytes_size);
+          previous_mbytes_size = current_mbytes_size;
+        }
         ch341SpiCs(out, true);
         idx = CH341_PACKET_LENGTH + 1;
         out[idx++] = 0xC0; // byte swapped command for Flash Read
@@ -408,7 +424,7 @@ int32_t ch341SpiRead(uint8_t *buf, uint32_t add, uint32_t len)
     return ret;
 }
 
-#define WRITE_PAYLOAD_LENGTH 301 // 301 is the length of a page(256)'s data with protocol overhead 
+#define WRITE_PAYLOAD_LENGTH 301 // 301 is the length of a page(256)'s data with protocol overhead
 /* write buffer(*buf) to SPI flash */
 int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len)
 {
