@@ -343,10 +343,6 @@ int32_t ch341SpiRead(uint8_t *buf, uint32_t add, uint32_t len)
     uint32_t ret;
     int32_t old_counter;
     struct timeval tv = {0, 100};
-    uint32_t previous_mbytes_size = 0;
-    uint32_t current_kbytes_size = 0;
-    uint32_t current_mbytes_size = 0;
-    uint32_t readable_mbytes_size = 0;
 
     memset(out, 0xff, CH341_MAX_PACKET_LEN);
     for (int i = 1; i < CH341_MAX_PACKETS; ++i) // fill CH341A_CMD_SPI_STREAM for every packet
@@ -355,19 +351,10 @@ int32_t ch341SpiRead(uint8_t *buf, uint32_t add, uint32_t len)
     xferBulkIn  = libusb_alloc_transfer(0);
     xferBulkOut = libusb_alloc_transfer(0);
 
-    current_kbytes_size = len / 1024;
-    current_mbytes_size = len / 1048576;
-    previous_mbytes_size = current_mbytes_size;
-
-    printf("Try to read %i KBytes...\n", current_kbytes_size);
+    printf("Read started!\n");
     while (len > 0) {
-        //if (len % 1048576)
-        current_mbytes_size = len / 1048676;
-        if (current_mbytes_size != previous_mbytes_size) {
-          readable_mbytes_size = current_mbytes_size + 1;
-          printf("Mbytes left: %i\n", readable_mbytes_size);
-          previous_mbytes_size = current_mbytes_size;
-        }
+        printf(".");
+        fflush(stdout);
         ch341SpiCs(out, true);
         idx = CH341_PACKET_LENGTH + 1;
         out[idx++] = 0xC0; // byte swapped command for Flash Read
@@ -442,7 +429,12 @@ int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len)
     xferBulkIn  = libusb_alloc_transfer(0);
     xferBulkOut = libusb_alloc_transfer(0);
 
+    printf("Write started!\n");
     while (len > 0) {
+        if (len % 1024 == 0) {
+            printf(".");
+            fflush(stdout);
+        }
         out[0] = 0x06; // Write enable
         ret = ch341SpiStream(out, in, 1);
         ch341SpiCs(out, true);
@@ -456,6 +448,7 @@ int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len)
         }
         tmp = 0;
         pkg_count = 1;
+
         while ((idx < WRITE_PAYLOAD_LENGTH) && (len > tmp)) {
             if (idx % CH341_PACKET_LENGTH == 0) {
                 out[idx++] = CH341A_CMD_SPI_STREAM;
