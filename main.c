@@ -169,8 +169,46 @@ int main(int argc, char* argv[])
             goto out;
         }
         fprintf(stderr, "File Size is [%d]\n", ret);
-        fclose(fp);
         ret = ch341SpiWrite(buf, 0, ret);
+        if (ret == 0) {
+            printf("\nWrite ok! Try to verify... ");
+            FILE *test_file;
+            char *test_filename;
+            test_filename = (char*) malloc(strlen("./test-firmware.bin") + 1);
+            strcpy(test_filename, "./test-firmware.bin");
+
+            ret = ch341SpiRead(buf, 0, cap);
+            test_file = fopen(test_filename, "wb");
+
+            if (!test_file) {
+                fprintf(stderr, "Couldn't open file %s for writing.\n", test_filename);
+                goto out;
+            }
+            fwrite(buf, 1, cap, test_file);
+
+            if (ferror(test_file))
+                fprintf(stderr, "Error writing file [%s]\n", test_filename);
+
+            int ch1, ch2;
+            ch1 = getc(fp);
+            ch2 = getc(test_file);
+
+            while ((ch1 != EOF) && (ch2 != EOF) && (ch1 == ch2)) {
+                ch1 = getc(fp);
+                ch2 = getc(test_file);
+            }
+
+            if (ch1 == ch2)
+                printf("\nWrite completed successfully. \n");
+            else
+                printf("\nError while writing. Check your device. \n");
+
+            if (remove(test_filename) == 0)
+                printf("\nAll done. \n");
+            else
+                printf("\nTemp file could not be deleted");
+        }
+        fclose(fp);
     }
 out:
     ch341Release();
