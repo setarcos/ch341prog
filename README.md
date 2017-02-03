@@ -1,6 +1,6 @@
 Ch341Prog
 ============
-A simple command line tool(programmer) interfacing with ch341a under Linux OS.
+A simple command line tool(programmer) interfacing with ch341a under Linux OS and macOS.
 
 Description
 ------------
