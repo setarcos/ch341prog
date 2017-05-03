@@ -16,6 +16,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ *
+ * verbose functionality forked from https://github.com/vSlipenchuk/ch341prog/commit/5afb03fe27b54dbcc88f6584417971d045dd8dab
+ *
  */
 
 #include <libusb-1.0/libusb.h>
@@ -31,6 +34,8 @@ int32_t bulkin_count;
 struct libusb_device_handle *devHandle = NULL;
 struct sigaction saold;
 int force_stop = 0;
+
+void v_print(int mode, int len) ;
 
 /* SIGINT handler */
 void sig_int(int signo)
@@ -343,6 +348,7 @@ int32_t ch341SpiRead(uint8_t *buf, uint32_t add, uint32_t len)
     uint32_t ret;
     int32_t old_counter;
     struct timeval tv = {0, 100};
+    v_print( 0, len); // verbose
 
     memset(out, 0xff, CH341_MAX_PACKET_LEN);
     for (int i = 1; i < CH341_MAX_PACKETS; ++i) // fill CH341A_CMD_SPI_STREAM for every packet
@@ -353,7 +359,7 @@ int32_t ch341SpiRead(uint8_t *buf, uint32_t add, uint32_t len)
 
     printf("Read started!\n");
     while (len > 0) {
-        printf(".");
+	v_print( 1, len); // verbose
         fflush(stdout);
         ch341SpiCs(out, true);
         idx = CH341_PACKET_LENGTH + 1;
@@ -408,6 +414,7 @@ int32_t ch341SpiRead(uint8_t *buf, uint32_t add, uint32_t len)
     }
     libusb_free_transfer(xferBulkIn);
     libusb_free_transfer(xferBulkOut);
+    v_print(2, 0);
     return ret;
 }
 
@@ -424,6 +431,8 @@ int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len)
     int32_t old_counter;
     struct timeval tv = {0, 100};
 
+    v_print(0, len); // verbose
+
     if (devHandle == NULL) return -1;
     memset(out, 0xff, WRITE_PAYLOAD_LENGTH);
     xferBulkIn  = libusb_alloc_transfer(0);
@@ -431,10 +440,8 @@ int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len)
 
     printf("Write started!\n");
     while (len > 0) {
-        if (len % 1024 == 0) {
-            printf(".");
-            fflush(stdout);
-        }
+	v_print(1, len);
+
         out[0] = 0x06; // Write enable
         ret = ch341SpiStream(out, in, 1);
         ch341SpiCs(out, true);
@@ -503,5 +510,7 @@ int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len)
     }
     libusb_free_transfer(xferBulkIn);
     libusb_free_transfer(xferBulkOut);
+
+    v_print(2, 0);
     return ret;
 }
