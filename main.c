@@ -16,6 +16,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ *
+ * verbose functionality forked from https://github.com/vSlipenchuk/ch341prog/commit/5afb03fe27b54dbcc88f6584417971d045dd8dab
+ *
  */
 
 #include <stdint.h>
@@ -25,6 +28,42 @@
 #include <string.h>
 #include <getopt.h>
 #include "ch341a.h"
+#include <time.h>
+#include <stdio.h>
+
+int verbose;
+
+void v_print(int mode, int len) { // mode: begin=0, progress = 1
+static int size = 0;
+static time_t started,reported;
+int dur,done;
+if (!verbose) return ;
+time_t now;
+time(&now);
+switch (mode) {
+  case 0: // setup
+	size = len;
+	started = reported = now;
+        break;
+  case 1: // progress
+	if (now == started ) return ;
+        dur = now - started;
+        done = size-len;
+	if (done >0 && reported !=now) {
+        printf("Bytes: %d (%d%c),  Time: %d, ETA: %d   \r",done,
+                           (done*100)/size, '%', dur, (int) ( (dur*size*1.0)/done-dur));
+		fflush(stdout);
+		reported = now;
+	        }
+	break;
+  case 2: // done
+	dur = now - started; if (dur<1) dur=1;
+        printf("Total:  %d sec,  average speed  %d  bytes per second.\n",dur, size/dur);
+	break;
+
+	break;
+}
+}
 
 int main(int argc, char* argv[])
 {
@@ -43,6 +82,7 @@ int main(int argc, char* argv[])
         " -h, --help             display this message\n"\
         " -i, --info             read the chip ID info\n"\
         " -e, --erase            erase the entire chip\n"\
+	" -v,--verbose		print verbose info\n"\
         " -l, --length <bytes>   manually set length\n"\
         " -w, --write <filename> write chip with data from filename\n"\
         " -r, --read <filename>  read chip and save data to filename\n"\
@@ -53,14 +93,16 @@ int main(int argc, char* argv[])
         {"erase",   no_argument,        0, 'e'},
         {"write",   required_argument,  0, 'w'},
         {"length",   required_argument,  0, 'l'},
+	{"verbose",   required_argument,        0, 'v'},
+	{"write",   required_argument,  0, 'w'},
         {"read",    required_argument,  0, 'r'},
-	{"turbo",   no_argument,  0, 't'},
-	{"double",  no_argument,  0, 'd'},
+        {"turbo",   no_argument,  0, 't'},
+        {"double",  no_argument,  0, 'd'},
         {0, 0, 0, 0}};
 
         int32_t optidx = 0;
 
-        while ((c = getopt_long(argc, argv, "hiew:r:l:td", options, &optidx)) != -1){
+        while ((c = getopt_long(argc, argv, "hiew:r:l:td:v", options, &optidx)) != -1){
             switch (c) {
                 case 'i':
                 case 'e':
@@ -69,6 +111,9 @@ int main(int argc, char* argv[])
                     else
                         op = 'x';
                     break;
+		case 'v':
+		    verbose = 1;
+		    break;
                 case 'w':
                 case 'r':
                     if (!op) {
@@ -110,7 +155,7 @@ int main(int argc, char* argv[])
     ret = ch341SpiCapacity();
     if (ret < 0) goto out;
     cap = 1 << ret;
-    printf("Chip capacity is %d\n", cap);
+    printf("Chip capacity is %d bytes\n", cap);
 
     if (length != 0){
 	cap = length;
@@ -169,8 +214,46 @@ int main(int argc, char* argv[])
             goto out;
         }
         fprintf(stderr, "File Size is [%d]\n", ret);
-        fclose(fp);
         ret = ch341SpiWrite(buf, 0, ret);
+        if (ret == 0) {
+            printf("\nWrite ok! Try to verify... ");
+            FILE *test_file;
+            char *test_filename;
+            test_filename = (char*) malloc(strlen("./test-firmware.bin") + 1);
+            strcpy(test_filename, "./test-firmware.bin");
+
+            ret = ch341SpiRead(buf, 0, cap);
+            test_file = fopen(test_filename, "wb");
+
+            if (!test_file) {
+                fprintf(stderr, "Couldn't open file %s for writing.\n", test_filename);
+                goto out;
+            }
+            fwrite(buf, 1, cap, test_file);
+
+            if (ferror(test_file))
+                fprintf(stderr, "Error writing file [%s]\n", test_filename);
+
+            int ch1, ch2;
+            ch1 = getc(fp);
+            ch2 = getc(test_file);
+
+            while ((ch1 != EOF) && (ch2 != EOF) && (ch1 == ch2)) {
+                ch1 = getc(fp);
+                ch2 = getc(test_file);
+            }
+
+            if (ch1 == ch2)
+                printf("\nWrite completed successfully. \n");
+            else
+                printf("\nError while writing. Check your device. \n");
+
+            if (remove(test_filename) == 0)
+                printf("\nAll done. \n");
+            else
+                printf("\nTemp file could not be deleted");
+        }
+        fclose(fp);
     }
 out:
     ch341Release();

@@ -16,6 +16,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ *
+ * verbose functionality forked from https://github.com/vSlipenchuk/ch341prog/commit/5afb03fe27b54dbcc88f6584417971d045dd8dab
+ *
  */
 
 #include <libusb-1.0/libusb.h>
@@ -32,6 +35,8 @@ struct libusb_device_handle *devHandle = NULL;
 struct sigaction saold;
 int force_stop = 0;
 
+void v_print(int mode, int len) ;
+
 /* SIGINT handler */
 void sig_int(int signo)
 {
@@ -40,7 +45,7 @@ void sig_int(int signo)
 
 /* Configure CH341A, find the device and set the default interface. */
 int32_t ch341Configure(uint16_t vid, uint16_t pid)
-{ 
+{
     struct libusb_device *dev;
     int32_t ret;
     struct sigaction sa;
@@ -58,12 +63,12 @@ int32_t ch341Configure(uint16_t vid, uint16_t pid)
     }
 
     libusb_set_debug(NULL, 3);
-    
+
     if(!(devHandle = libusb_open_device_with_vid_pid(NULL, vid, pid))) {
         fprintf(stderr, "Couldn't open device [%04x:%04x].\n", vid, pid);
         return -1;
     }
- 
+
     if(!(dev = libusb_get_device(devHandle))) {
         fprintf(stderr, "Couldn't get bus number and address.\n");
         goto close_handle;
@@ -76,21 +81,21 @@ int32_t ch341Configure(uint16_t vid, uint16_t pid)
             goto close_handle;
         }
     }
-    
+
     ret = libusb_claim_interface(devHandle, 0);
 
     if(ret) {
         fprintf(stderr, "Failed to claim interface 0: '%s'\n", strerror(-ret));
         goto close_handle;
     }
-    
+
     ret = libusb_get_descriptor(devHandle, LIBUSB_DT_DEVICE, 0x00, desc, 0x12);
 
     if(ret < 0) {
         fprintf(stderr, "Failed to get device descriptor: '%s'\n", strerror(-ret));
         goto release_interface;
     }
-    
+
     printf("Device reported its revision [%d.%02d]\n", desc[12], desc[13]);
     sa.sa_handler = &sig_int;
     sa.sa_flags = SA_RESTART;
@@ -343,6 +348,7 @@ int32_t ch341SpiRead(uint8_t *buf, uint32_t add, uint32_t len)
     uint32_t ret;
     int32_t old_counter;
     struct timeval tv = {0, 100};
+    v_print( 0, len); // verbose
 
     memset(out, 0xff, CH341_MAX_PACKET_LEN);
     for (int i = 1; i < CH341_MAX_PACKETS; ++i) // fill CH341A_CMD_SPI_STREAM for every packet
@@ -351,7 +357,10 @@ int32_t ch341SpiRead(uint8_t *buf, uint32_t add, uint32_t len)
     xferBulkIn  = libusb_alloc_transfer(0);
     xferBulkOut = libusb_alloc_transfer(0);
 
+    printf("Read started!\n");
     while (len > 0) {
+	v_print( 1, len); // verbose
+        fflush(stdout);
         ch341SpiCs(out, true);
         idx = CH341_PACKET_LENGTH + 1;
         out[idx++] = 0xC0; // byte swapped command for Flash Read
@@ -405,10 +414,11 @@ int32_t ch341SpiRead(uint8_t *buf, uint32_t add, uint32_t len)
     }
     libusb_free_transfer(xferBulkIn);
     libusb_free_transfer(xferBulkOut);
+    v_print(2, 0);
     return ret;
 }
 
-#define WRITE_PAYLOAD_LENGTH 301 // 301 is the length of a page(256)'s data with protocol overhead 
+#define WRITE_PAYLOAD_LENGTH 301 // 301 is the length of a page(256)'s data with protocol overhead
 /* write buffer(*buf) to SPI flash */
 int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len)
 {
@@ -421,12 +431,17 @@ int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len)
     int32_t old_counter;
     struct timeval tv = {0, 100};
 
+    v_print(0, len); // verbose
+
     if (devHandle == NULL) return -1;
     memset(out, 0xff, WRITE_PAYLOAD_LENGTH);
     xferBulkIn  = libusb_alloc_transfer(0);
     xferBulkOut = libusb_alloc_transfer(0);
 
+    printf("Write started!\n");
     while (len > 0) {
+	v_print(1, len);
+
         out[0] = 0x06; // Write enable
         ret = ch341SpiStream(out, in, 1);
         ch341SpiCs(out, true);
@@ -440,6 +455,7 @@ int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len)
         }
         tmp = 0;
         pkg_count = 1;
+
         while ((idx < WRITE_PAYLOAD_LENGTH) && (len > tmp)) {
             if (idx % CH341_PACKET_LENGTH == 0) {
                 out[idx++] = CH341A_CMD_SPI_STREAM;
@@ -494,5 +510,7 @@ int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len)
     }
     libusb_free_transfer(xferBulkIn);
     libusb_free_transfer(xferBulkOut);
+
+    v_print(2, 0);
     return ret;
 }
