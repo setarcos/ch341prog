@@ -359,7 +359,7 @@ int32_t ch341SpiRead(uint8_t *buf, uint32_t add, uint32_t len)
 
     printf("Read started!\n");
     while (len > 0) {
-	v_print( 1, len); // verbose
+        v_print( 1, len); // verbose
         fflush(stdout);
         ch341SpiCs(out, true);
         idx = CH341_PACKET_LENGTH + 1;
@@ -440,7 +440,7 @@ int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len)
 
     printf("Write started!\n");
     while (len > 0) {
-	v_print(1, len);
+        v_print(1, len);
 
         out[0] = 0x06; // Write enable
         ret = ch341SpiStream(out, in, 1);

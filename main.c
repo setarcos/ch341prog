@@ -42,26 +42,26 @@ time_t now;
 time(&now);
 switch (mode) {
   case 0: // setup
-	size = len;
-	started = reported = now;
+        size = len;
+        started = reported = now;
         break;
   case 1: // progress
-	if (now == started ) return ;
+        if (now == started ) return ;
         dur = now - started;
         done = size-len;
-	if (done >0 && reported !=now) {
+        if (done >0 && reported !=now) {
         printf("Bytes: %d (%d%c),  Time: %d, ETA: %d   \r",done,
                            (done*100)/size, '%', dur, (int) ( (dur*size*1.0)/done-dur));
-		fflush(stdout);
-		reported = now;
-	        }
-	break;
+                fflush(stdout);
+                reported = now;
+                }
+        break;
   case 2: // done
-	dur = now - started; if (dur<1) dur=1;
+        dur = now - started; if (dur<1) dur=1;
         printf("Total:  %d sec,  average speed  %d  bytes per second.\n",dur, size/dur);
-	break;
+        break;
 
-	break;
+        break;
 }
 }
 
@@ -82,22 +82,22 @@ int main(int argc, char* argv[])
         " -h, --help             display this message\n"\
         " -i, --info             read the chip ID info\n"\
         " -e, --erase            erase the entire chip\n"\
-	" -v,--verbose		print verbose info\n"\
+        " -v, --verbose          print verbose info\n"\
         " -l, --length <bytes>   manually set length\n"\
         " -w, --write <filename> write chip with data from filename\n"\
         " -r, --read <filename>  read chip and save data to filename\n"\
         " -t, --turbo            increase the i2c bus speed (-tt to use much faster speed)\n"\
-	" -d, --double           double the spi bus speed\n";
+        " -d, --double           double the spi bus speed\n";
     const struct option options[] = {
         {"help",    no_argument,        0, 'h'},
         {"erase",   no_argument,        0, 'e'},
         {"write",   required_argument,  0, 'w'},
-        {"length",   required_argument,  0, 'l'},
-	{"verbose",   required_argument,        0, 'v'},
-	{"write",   required_argument,  0, 'w'},
+        {"length",  required_argument,  0, 'l'},
+        {"verbose", required_argument,  0, 'v'},
+        {"write",   required_argument,  0, 'w'},
         {"read",    required_argument,  0, 'r'},
-        {"turbo",   no_argument,  0, 't'},
-        {"double",  no_argument,  0, 'd'},
+        {"turbo",   no_argument,        0, 't'},
+        {"double",  no_argument,        0, 'd'},
         {0, 0, 0, 0}};
 
         int32_t optidx = 0;
@@ -111,9 +111,9 @@ int main(int argc, char* argv[])
                     else
                         op = 'x';
                     break;
-		case 'v':
-		    verbose = 1;
-		    break;
+                case 'v':
+                    verbose = 1;
+                    break;
                 case 'w':
                 case 'r':
                     if (!op) {
@@ -123,17 +123,17 @@ int main(int argc, char* argv[])
                     } else
                         op = 'x';
                     break;
-		case 'l':
-		    length = atoi(optarg);
-		    break;
-		case 't':
-		    if ((speed & 3) < 3) {
-		        speed++;
-		    }
-		    break;
-		case 'd':
-		    speed |= CH341A_STM_SPI_DBL;
-		    break;
+                case 'l':
+                    length = atoi(optarg);
+                    break;
+                case 't':
+                    if ((speed & 3) < 3) {
+                        speed++;
+                    }
+                    break;
+                case 'd':
+                    speed |= CH341A_STM_SPI_DBL;
+                    break;
                 default:
                     printf("%s\n", usage);
                     return 0;
@@ -158,7 +158,7 @@ int main(int argc, char* argv[])
     printf("Chip capacity is %d bytes\n", cap);
 
     if (length != 0){
-	cap = length;
+        cap = length;
     }
     if (op == 'i') goto out;
     if (op == 'e') {
