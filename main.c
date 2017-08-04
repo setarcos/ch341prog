@@ -223,7 +223,7 @@ int main(int argc, char* argv[])
             strcpy(test_filename, "./test-firmware.bin");
 
             ret = ch341SpiRead(buf, 0, cap);
-            test_file = fopen(test_filename, "wb");
+            test_file = fopen(test_filename, "w+b");
 
             if (!test_file) {
                 fprintf(stderr, "Couldn't open file %s for writing.\n", test_filename);
@@ -234,14 +234,17 @@ int main(int argc, char* argv[])
             if (ferror(test_file))
                 fprintf(stderr, "Error writing file [%s]\n", test_filename);
 
-            int ch1, ch2;
-            ch1 = getc(fp);
-            ch2 = getc(test_file);
+	    fseek(fp, 0, SEEK_SET);
+	    fseek(test_file, 0, SEEK_SET);
 
-            while ((ch1 != EOF) && (ch2 != EOF) && (ch1 == ch2)) {
-                ch1 = getc(fp);
-                ch2 = getc(test_file);
-            }
+	    int ch1, ch2;
+	    ch1 = getc(fp);
+	    ch2 = getc(test_file);
+
+	    while ((ch1 != EOF) && (ch2 != EOF) && (ch1 == ch2)) {
+		    ch1 = getc(fp);
+		    ch2 = getc(test_file);
+	    }
 
             if (ch1 == ch2)
                 printf("\nWrite completed successfully. \n");
