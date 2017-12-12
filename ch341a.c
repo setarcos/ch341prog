@@ -239,7 +239,7 @@ int32_t ch341SpiCapacity(void)
     if (ret < 0)
         return ret;
         
-    if (in[1] != 0xFF && in[2] != 0xFF && in[3] != 0xFF)
+    if (! (in[1] == 0xFF && in[2] == 0xFF && in[3] == 0xFF))
     {
         printf("Manufacturer ID: %02x\n", in[1]);
         printf("Memory Type: %02x%02x\n", in[2], in[3]);
