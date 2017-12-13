@@ -225,26 +225,43 @@ int32_t ch341SpiCapacity(void)
     uint8_t in[JEDEC_ID_LEN], *ptr, cap;
     int32_t ret;
 
-    if (devHandle == NULL) return -1;
+    if (devHandle == NULL)
+        return -1;
+
     ptr = out;
     *ptr++ = 0x9F; // Read JEDEC ID
-    for (int i = 0; i < JEDEC_ID_LEN-1; ++i)
+
+    for (int i = 0; i < JEDEC_ID_LEN - 1; ++i)
         *ptr++ = 0x00;
 
     ret = ch341SpiStream(out, in, JEDEC_ID_LEN);
-    if (ret < 0) return ret;
-    printf("Manufacturer ID: %02x\n", in[1]);
-    printf("Memory Type: %02x%02x\n", in[2], in[3]);
 
-    if(in[0x11]=='Q' && in[0x12]=='R' && in[0x13]=='Y') {
-        cap = in[0x28];
-        printf("Reading device capacity from CFI structure\n");
-    } else {
-        cap = in[3];
-        printf("No CFI structure found, trying to get capacity from device ID. Set manually if detection fails.\n");
+    if (ret < 0)
+        return ret;
+        
+    if (! (in[1] == 0xFF && in[2] == 0xFF && in[3] == 0xFF))
+    {
+        printf("Manufacturer ID: %02x\n", in[1]);
+        printf("Memory Type: %02x%02x\n", in[2], in[3]);
+
+        if (in[0x11] == 'Q' && in[0x12] == 'R' && in[0x13] == 'Y')
+        {
+            cap = in[0x28];
+            printf("Reading device capacity from CFI structure\n");
+        }
+        else
+        {
+            cap = in[3];
+            printf("No CFI structure found, trying to get capacity from device ID. Set manually if detection fails.\n");
+        }
+
+        printf("Capacity: %02x\n", cap);
     }
-
-    printf("Capacity: %02x\n", cap);
+    else
+    {
+        printf("Chip not found or missed in ch341a. Check connection\n");
+        exit(0);
+    }
 
     return cap;
 }
