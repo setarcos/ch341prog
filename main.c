@@ -51,7 +51,7 @@ switch (mode) {
         done = size-len;
         if (done >0 && reported !=now) {
         printf("Bytes: %d (%d%c),  Time: %d, ETA: %d   \r",done,
-                           (done*100)/size, '%', dur, (int) ( (dur*size*1.0)/done-dur));
+                           (done*100)/size, '%', dur, (int) ( (1.0*dur*size)/done-dur));
                 fflush(stdout);
                 reported = now;
                 }
