@@ -102,7 +102,7 @@ int main(int argc, char* argv[])
 
         int32_t optidx = 0;
 
-        while ((c = getopt_long(argc, argv, "hiew:r:l:td:v", options, &optidx)) != -1){
+        while ((c = getopt_long(argc, argv, "hiew:r:l:tdv", options, &optidx)) != -1){
             switch (c) {
                 case 'i':
                 case 'e':
