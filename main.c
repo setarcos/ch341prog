@@ -93,7 +93,7 @@ int main(int argc, char* argv[])
         {"erase",   no_argument,        0, 'e'},
         {"write",   required_argument,  0, 'w'},
         {"length",  required_argument,  0, 'l'},
-        {"verbose", required_argument,  0, 'v'},
+        {"verbose", no_argument,        0, 'v'},
         {"write",   required_argument,  0, 'w'},
         {"read",    required_argument,  0, 'r'},
         {"turbo",   no_argument,        0, 't'},
