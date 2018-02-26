@@ -90,6 +90,7 @@ int main(int argc, char* argv[])
         " -d, --double           double the spi bus speed\n";
     const struct option options[] = {
         {"help",    no_argument,        0, 'h'},
+        {"info",    no_argument,        0, 'i'},
         {"erase",   no_argument,        0, 'e'},
         {"write",   required_argument,  0, 'w'},
         {"length",  required_argument,  0, 'l'},
