@@ -76,6 +76,7 @@ int main(int argc, char* argv[])
     char op = 0;
     uint32_t speed = CH341A_STM_I2C_20K;
     int8_t c;
+    int offset = 0;
 
     const char usage[] =
         "\nUsage:\n"\
@@ -85,16 +86,19 @@ int main(int argc, char* argv[])
         " -v, --verbose          print verbose info\n"\
         " -l, --length <bytes>   manually set length\n"\
         " -w, --write <filename> write chip with data from filename\n"\
+        " -0, --offset <HEX_OFFSET> write data starting from specific offset\n"\
         " -r, --read <filename>  read chip and save data to filename\n"\
         " -t, --turbo            increase the i2c bus speed (-tt to use much faster speed)\n"\
         " -d, --double           double the spi bus speed\n";
     const struct option options[] = {
         {"help",    no_argument,        0, 'h'},
+        {"info",    no_argument,        0, 'i'},
         {"erase",   no_argument,        0, 'e'},
         {"write",   required_argument,  0, 'w'},
         {"length",  required_argument,  0, 'l'},
-        {"verbose", required_argument,  0, 'v'},
+        {"verbose", no_argument,        0, 'v'},
         {"write",   required_argument,  0, 'w'},
+        {"offset",  required_argument,  0, 'o'},
         {"read",    required_argument,  0, 'r'},
         {"turbo",   no_argument,        0, 't'},
         {"double",  no_argument,        0, 'd'},
@@ -102,7 +106,7 @@ int main(int argc, char* argv[])
 
         int32_t optidx = 0;
 
-        while ((c = getopt_long(argc, argv, "hiew:r:l:td:v", options, &optidx)) != -1){
+        while ((c = getopt_long(argc, argv, "hiew:r:l:tdv", options, &optidx)) != -1){
             switch (c) {
                 case 'i':
                 case 'e':
@@ -134,6 +138,8 @@ int main(int argc, char* argv[])
                 case 'd':
                     speed |= CH341A_STM_SPI_DBL;
                     break;
+                case 'o':
+                    offset = atoi(optarg);
                 default:
                     printf("%s\n", usage);
                     return 0;
@@ -214,7 +220,7 @@ int main(int argc, char* argv[])
             goto out;
         }
         fprintf(stderr, "File Size is [%d]\n", ret);
-        ret = ch341SpiWrite(buf, 0, ret);
+        ret = ch341SpiWrite(buf, offset, ret);
         if (ret == 0) {
             printf("\nWrite ok! Try to verify... ");
             FILE *test_file;
