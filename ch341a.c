@@ -62,7 +62,12 @@ int32_t ch341Configure(uint16_t vid, uint16_t pid)
         return -1;
     }
 
-    libusb_set_debug(NULL, 3);
+    
+    #if LIBUSB_API_VERSION < 0x01000106
+	    libusb_set_debug(NULL, 3);
+    #else
+	    libusb_set_option(NULL, LIBUSB_OPTION_LOG_LEVEL, LIBUSB_LOG_LEVEL_INFO);
+    #endif
 
     if(!(devHandle = libusb_open_device_with_vid_pid(NULL, vid, pid))) {
         fprintf(stderr, "Couldn't open device [%04x:%04x].\n", vid, pid);
