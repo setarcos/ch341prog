@@ -62,11 +62,10 @@ int32_t ch341Configure(uint16_t vid, uint16_t pid)
         return -1;
     }
 
-    
     #if LIBUSB_API_VERSION < 0x01000106
-	    libusb_set_debug(NULL, 3);
+        libusb_set_debug(NULL, 3);
     #else
-	    libusb_set_option(NULL, LIBUSB_OPTION_LOG_LEVEL, LIBUSB_LOG_LEVEL_INFO);
+        libusb_set_option(NULL, LIBUSB_OPTION_LOG_LEVEL, LIBUSB_LOG_LEVEL_INFO);
     #endif
 
     if(!(devHandle = libusb_open_device_with_vid_pid(NULL, vid, pid))) {
@@ -243,7 +242,7 @@ int32_t ch341SpiCapacity(void)
 
     if (ret < 0)
         return ret;
-        
+
     if (! (in[1] == 0xFF && in[2] == 0xFF && in[3] == 0xFF))
     {
         printf("Manufacturer ID: %02x\n", in[1]);

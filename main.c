@@ -240,17 +240,17 @@ int main(int argc, char* argv[])
             if (ferror(test_file))
                 fprintf(stderr, "Error writing file [%s]\n", test_filename);
 
-	    fseek(fp, 0, SEEK_SET);
-	    fseek(test_file, 0, SEEK_SET);
+            fseek(fp, 0, SEEK_SET);
+            fseek(test_file, 0, SEEK_SET);
 
-	    int ch1, ch2;
-	    ch1 = getc(fp);
-	    ch2 = getc(test_file);
+            int ch1, ch2;
+            ch1 = getc(fp);
+            ch2 = getc(test_file);
 
-	    while ((ch1 != EOF) && (ch2 != EOF) && (ch1 == ch2)) {
-		    ch1 = getc(fp);
-		    ch2 = getc(test_file);
-	    }
+            while ((ch1 != EOF) && (ch2 != EOF) && (ch1 == ch2)) {
+                ch1 = getc(fp);
+                ch2 = getc(test_file);
+            }
 
             if (ch1 == ch2)
                 printf("\nWrite completed successfully. \n");
