@@ -34,35 +34,38 @@
 int verbose;
 
 void v_print(int mode, int len) { // mode: begin=0, progress = 1
-static int size = 0;
-static time_t started,reported;
-int dur,done;
-if (!verbose) return ;
-time_t now;
-time(&now);
-switch (mode) {
-  case 0: // setup
-        size = len;
-        started = reported = now;
-        break;
-  case 1: // progress
-        if (now == started ) return ;
-        dur = now - started;
-        done = size-len;
-        if (done >0 && reported !=now) {
-        printf("Bytes: %d (%d%c),  Time: %d, ETA: %d   \r",done,
-                           (done*100)/size, '%', dur, (int) ( (1.0*dur*size)/done-dur));
-                fflush(stdout);
-                reported = now;
-                }
-        break;
-  case 2: // done
-        dur = now - started; if (dur<1) dur=1;
-        printf("Total:  %d sec,  average speed  %d  bytes per second.\n",dur, size/dur);
-        break;
+	if (!verbose) return ;
 
-        break;
-}
+	static unsigned int size = 0;
+	static time_t started,reported;
+	unsigned int dur,done;
+	time_t now;
+	time(&now);
+
+	switch (mode) {
+		case 0: // setup
+			size = len;
+			started = reported = now;
+			break;
+		case 1: // progress
+			if (now == started ) return ;
+
+			dur = now - started;
+			done = size-len;
+			if (done > 0 && reported != now) {
+				printf("Bytes: %d (%d%c),  Time: %d, ETA: %d   \r",done,
+						(done * 100) / size, '%', dur, (int) ((1.0 * dur * size) / done-dur));
+				fflush(stdout);
+				reported = now;
+			}
+			break;
+		case 2: // done
+			dur = now - started; if (dur<1) dur=1;
+			printf("Total:  %d sec,  average speed  %d  bytes per second.\n", dur, size / dur);
+			break;
+		default:
+			break;
+	}
 }
 
 int main(int argc, char* argv[])
@@ -86,7 +89,7 @@ int main(int argc, char* argv[])
         " -v, --verbose          print verbose info\n"\
         " -l, --length <bytes>   manually set length\n"\
         " -w, --write <filename> write chip with data from filename\n"\
-        " -0, --offset <HEX_OFFSET> write data starting from specific offset\n"\
+        " -o, --offset <HEX_OFFSET> write data starting from specific offset\n"\
         " -r, --read <filename>  read chip and save data to filename\n"\
         " -t, --turbo            increase the i2c bus speed (-tt to use much faster speed)\n"\
         " -d, --double           double the spi bus speed\n";
