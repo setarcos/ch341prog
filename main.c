@@ -252,7 +252,7 @@ int main(int argc, char* argv[])
                 ch2 = getc(test_file);
             }
 
-            if (ch1 == ch2)
+            if (ch1 == ch2 || (ch1 == EOF))
                 printf("\nWrite completed successfully. \n");
             else
                 printf("\nError while writing. Check your device. \n");
