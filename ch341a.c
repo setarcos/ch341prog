@@ -136,7 +136,7 @@ int32_t usbTransfer(const char * func, uint8_t type, uint8_t* buf, int len)
     ret = libusb_bulk_transfer(devHandle, type, buf, len, &transfered, DEFAULT_TIMEOUT);
     if (ret < 0) {
         fprintf(stderr, "%s: Failed to %s %d bytes '%s'\n", func,
-                (type == BULK_WRITE_ENDPOINT) ? "write" : "read", len, strerror(-ret));
+                (type == BULK_WRITE_ENDPOINT) ? "write" : "read", len, libusb_error_name(ret));
         return -1;
     }
     return transfered;
