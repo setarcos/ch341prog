@@ -89,7 +89,7 @@ int main(int argc, char* argv[])
         " -v, --verbose          print verbose info\n"\
         " -l, --length <bytes>   manually set length\n"\
         " -w, --write <filename> write chip with data from filename\n"\
-        " -o, --offset <HEX_OFFSET> write data starting from specific offset\n"\
+        " -o, --offset <bytes>   write data starting from specific offset\n"\
         " -r, --read <filename>  read chip and save data to filename\n"\
         " -t, --turbo            increase the i2c bus speed (-tt to use much faster speed)\n"\
         " -d, --double           double the spi bus speed\n";
@@ -109,7 +109,7 @@ int main(int argc, char* argv[])
 
         int32_t optidx = 0;
 
-        while ((c = getopt_long(argc, argv, "hiew:r:l:tdv", options, &optidx)) != -1){
+        while ((c = getopt_long(argc, argv, "hiew:r:l:tdvo:", options, &optidx)) != -1){
             switch (c) {
                 case 'i':
                 case 'e':
@@ -143,6 +143,7 @@ int main(int argc, char* argv[])
                     break;
                 case 'o':
                     offset = atoi(optarg);
+                    break;
                 default:
                     printf("%s\n", usage);
                     return 0;
@@ -196,7 +197,7 @@ int main(int argc, char* argv[])
         }
     }
     if (op == 'r') {
-        ret = ch341SpiRead(buf, 0, cap);
+        ret = ch341SpiRead(buf, offset, cap);
         if (ret < 0)
             goto out;
         fp = fopen(filename, "wb");
@@ -231,7 +232,7 @@ int main(int argc, char* argv[])
             test_filename = (char*) malloc(strlen("./test-firmware.bin") + 1);
             strcpy(test_filename, "./test-firmware.bin");
 
-            ret = ch341SpiRead(buf, 0, cap);
+            ret = ch341SpiRead(buf, offset, cap);
             test_file = fopen(test_filename, "w+b");
 
             if (!test_file) {
