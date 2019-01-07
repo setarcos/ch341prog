@@ -260,7 +260,7 @@ int main(int argc, char* argv[])
             if (ch1 == ch2 || (ch1 == EOF))
                 printf("\nWrite completed successfully. \n");
             else
-                printf("\nError while writing. Check your device. \n");
+                printf("\nError while writing. Check your device. May be it need to be erased.\n");
 
             if (remove(test_filename) == 0)
                 printf("\nAll done. \n");
