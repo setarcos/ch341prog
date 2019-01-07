@@ -223,6 +223,7 @@ int main(int argc, char* argv[])
                 fclose(fp);
             goto out;
         }
+        cap = ret;
         fprintf(stderr, "File Size is [%d]\n", ret);
         ret = ch341SpiWrite(buf, offset, ret);
         if (ret == 0) {
