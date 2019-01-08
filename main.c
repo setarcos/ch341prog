@@ -249,15 +249,17 @@ int main(int argc, char* argv[])
             fseek(test_file, 0, SEEK_SET);
 
             int ch1, ch2;
+            int checked_count = 0;
             ch1 = getc(fp);
             ch2 = getc(test_file);
 
             while ((ch1 != EOF) && (ch2 != EOF) && (ch1 == ch2)) {
                 ch1 = getc(fp);
                 ch2 = getc(test_file);
+                checked_count++;
             }
 
-            if (ch1 == ch2 || (ch1 == EOF))
+            if (ch1 == ch2 || (checked_count == cap))
                 printf("\nWrite completed successfully. \n");
             else
                 printf("\nError while writing. Check your device. May be it need to be erased.\n");
