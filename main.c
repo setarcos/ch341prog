@@ -85,6 +85,7 @@ int main(int argc, char* argv[])
         "\nUsage:\n"\
         " -h, --help             display this message\n"\
         " -i, --info             read the chip ID info\n"\
+        " -u, --unlock           unlock block protection\n"\
         " -e, --erase            erase the entire chip\n"\
         " -v, --verbose          print verbose info\n"\
         " -l, --length <bytes>   manually set length\n"\
@@ -105,11 +106,12 @@ int main(int argc, char* argv[])
         {"read",    required_argument,  0, 'r'},
         {"turbo",   no_argument,        0, 't'},
         {"double",  no_argument,        0, 'd'},
+        {"unlock",  no_argument,        0, 'u'},
         {0, 0, 0, 0}};
 
         int32_t optidx = 0;
 
-        while ((c = getopt_long(argc, argv, "hiew:r:l:tdvo:", options, &optidx)) != -1){
+        while ((c = getopt_long(argc, argv, "uhiew:r:l:tdvo:", options, &optidx)) != -1){
             switch (c) {
                 case 'i':
                 case 'e':
@@ -144,6 +146,9 @@ int main(int argc, char* argv[])
                 case 'o':
                     offset = atoi(optarg);
                     break;
+				case 'u':
+					op='u';
+					break;
                 default:
                     printf("%s\n", usage);
                     return 0;
@@ -171,6 +176,11 @@ int main(int argc, char* argv[])
         cap = length;
     }
     if (op == 'i') goto out;
+	if (op == 'u') {
+		ret = ch341WriteStatus(0);
+		if (ret < 0) goto out;
+		printf("Chip status %04x\n",ret);
+	}
     if (op == 'e') {
         uint8_t timeout = 0;
         ret = ch341EraseChip();
