@@ -1,0 +1,18 @@
+The following people have contributed to this project:
+
+* Mikhail Dronov <mike@dronov.net> (Add verbose functionality and other fixes)
+* Henri Valta <cg@jakorasia.info> (Improved size detection and other fixes)
+* ermito <dmitri-diavo@mail.ru> (Fix offset mode)
+* Neil Stainton <nes0@eml.cc> (Add support for serial flash devices > 16MB in size)
+* fftmp <fftehnik@yandex.ru> (Fix a few command line options)
+* Doug Brown <doug@schmorgal.com> (Add udev rule)
+* Ulrich Prinz <ulrich.prinz@googlemail.com> (Respect file size when writing)
+* Daniel Kucera <daniel.kucera@gmail.com> (Add device size option)
+* Jelmer Tiete <jelmer@tiete.be> (Fix doc)
+* SSomov <goofma@gmail.com> (Fix libusb API)
+* Zensey <jnashicq@gmail.com> (Debianization)
+* iglooom <glooom@xtlt.ru> (Fix verify option)
+* naf <naf@ou.edu> (Fix ETA overflow)
+* persmule <persmule@gmail.com> (Add bus speed option)
+* cleverfox <devel@viruzzz.org> (Add unlock option)
+* Diratof Azdimarlow (Add nix suport)

@@ -16,9 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
- *
- * verbose functionality forked from https://github.com/vSlipenchuk/ch341prog/commit/5afb03fe27b54dbcc88f6584417971d045dd8dab
- *
  */
 
 #include <stdint.h>
@@ -34,38 +31,38 @@
 int verbose;
 
 void v_print(int mode, int len) { // mode: begin=0, progress = 1
-	if (!verbose) return ;
+    if (!verbose) return ;
 
-	static unsigned int size = 0;
-	static time_t started,reported;
-	unsigned int dur,done;
-	time_t now;
-	time(&now);
+    static unsigned int size = 0;
+    static time_t started,reported;
+    unsigned int dur,done;
+    time_t now;
+    time(&now);
 
-	switch (mode) {
-		case 0: // setup
-			size = len;
-			started = reported = now;
-			break;
-		case 1: // progress
-			if (now == started ) return ;
+    switch (mode) {
+        case 0: // setup
+            size = len;
+            started = reported = now;
+            break;
+        case 1: // progress
+            if (now == started ) return ;
 
-			dur = now - started;
-			done = size-len;
-			if (done > 0 && reported != now) {
-				printf("Bytes: %d (%d%c),  Time: %d, ETA: %d   \r",done,
-						(done * 100) / size, '%', dur, (int) ((1.0 * dur * size) / done-dur));
-				fflush(stdout);
-				reported = now;
-			}
-			break;
-		case 2: // done
-			dur = now - started; if (dur<1) dur=1;
-			printf("Total:  %d sec,  average speed  %d  bytes per second.\n", dur, size / dur);
-			break;
-		default:
-			break;
-	}
+            dur = now - started;
+            done = size-len;
+            if (done > 0 && reported != now) {
+                printf("Bytes: %d (%d%c),  Time: %d, ETA: %d   \r",done,
+                        (done * 100) / size, '%', dur, (int) ((1.0 * dur * size) / done-dur));
+                fflush(stdout);
+                reported = now;
+            }
+            break;
+        case 2: // done
+            dur = now - started; if (dur<1) dur=1;
+            printf("Total:  %d sec,  average speed  %d  bytes per second.\n", dur, size / dur);
+            break;
+        default:
+            break;
+    }
 }
 
 int main(int argc, char* argv[])
@@ -146,9 +143,9 @@ int main(int argc, char* argv[])
                 case 'o':
                     offset = atoi(optarg);
                     break;
-				case 'u':
-					op='u';
-					break;
+                case 'u':
+                    op='u';
+                    break;
                 default:
                     printf("%s\n", usage);
                     return 0;
@@ -176,11 +173,11 @@ int main(int argc, char* argv[])
         cap = length;
     }
     if (op == 'i') goto out;
-	if (op == 'u') {
-		ret = ch341WriteStatus(0);
-		if (ret < 0) goto out;
-		printf("Chip status %04x\n",ret);
-	}
+    if (op == 'u') {
+        ret = ch341WriteStatus(0);
+        if (ret < 0) goto out;
+        printf("Chip status %04x\n",ret);
+    }
     if (op == 'e') {
         uint8_t timeout = 0;
         ret = ch341EraseChip();
