@@ -1,0 +1,9 @@
+# CH341A USB Programmer Rule
+notify 100 {
+    match "system"    "USB";
+    match "subsystem" "DEVICE";
+    match "type"      "ATTACH";
+    match "vendor"    "0x1a86";
+    match "product"   "0x5512";
+    action "chmod 666 /dev/$cdev";
+};
