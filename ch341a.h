@@ -75,6 +75,11 @@ int32_t ch341WriteStatus(uint8_t status);
 int32_t ch341EraseChip(void);
 int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len);
 int32_t ch341Release(void);
+int32_t ch341ReadSecReg(uint8_t page, uint8_t *buf);
+int32_t ch341WriteSecReg(uint8_t page, uint8_t *buf, uint32_t len);
+int32_t ch341EraseSecReg(uint8_t page);
+int32_t ch341ReadStatus2(void);
+int32_t ch341WriteStatus2(uint8_t status);
 uint8_t swapByte(uint8_t c);
 
 #ifdef __cplusplus
