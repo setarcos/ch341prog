@@ -575,3 +575,167 @@ int32_t ch341SpiWrite(uint8_t *buf, uint32_t add, uint32_t len)
     v_print(2, 0);
     return ret;
 }
+
+/* read status register 2 (needed for lock bit checking) */
+int32_t ch341ReadStatus2(void)
+{
+    uint8_t out[2];
+    uint8_t in[2];
+    int32_t ret;
+
+    if (devHandle == NULL) return -1;
+    out[0] = 0x35; // Read status register 2
+    out[1] = 0x00;
+    ret = ch341SpiStream(out, in, 2);
+    if (ret < 0) return ret;
+    return (in[1]);
+}
+
+/* write status register 2 (used for setting lock bits) */
+int32_t ch341WriteStatus2(uint8_t status)
+{
+    uint8_t out[2];
+    uint8_t in[2];
+    int32_t ret;
+
+    if (devHandle == NULL) return -1;
+    out[0] = 0x06; // Write enable
+    ret = ch341SpiStream(out, in, 1);
+    if (ret < 0) return ret;
+    out[0] = 0x31; // Write status register 2
+    out[1] = status;
+    ret = ch341SpiStream(out, in, 2);
+    if (ret < 0) return ret;
+    out[0] = 0x04; // Write disable
+    ret = ch341SpiStream(out, in, 1);
+    if (ret < 0) return ret;
+    return 0;
+}
+
+/* read 256 bytes from a security register page (0-3)
+ * W25Q command 0x48: opcode + 24-bit addr + 8 dummy clocks + data
+ * Address format: page number in bits [15:8], byte offset in bits [7:0]
+ * So page 1 = address 0x001000, page 2 = 0x002000, page 3 = 0x003000 */
+int32_t ch341ReadSecReg(uint8_t page, uint8_t *buf)
+{
+    uint8_t out[261]; // 1 cmd + 3 addr + 1 dummy + 256 data = 261
+    uint8_t in[261];
+    int32_t ret;
+    uint32_t addr;
+
+    if (devHandle == NULL) return -1;
+    if (page > 3) {
+        fprintf(stderr, "Security register page must be 0-3\n");
+        return -1;
+    }
+
+    addr = page << 12; // page 1 -> 0x001000, page 2 -> 0x002000, page 3 -> 0x003000
+
+    memset(out, 0x00, sizeof(out));
+    out[0] = 0x48; // Read Security Register
+    out[1] = (addr >> 16) & 0xFF;
+    out[2] = (addr >> 8) & 0xFF;
+    out[3] = addr & 0xFF;
+    out[4] = 0x00; // 8 dummy clocks
+
+    ret = ch341SpiStream(out, in, 261);
+    if (ret < 0) return ret;
+
+    memcpy(buf, &in[5], 256); // skip cmd + addr + dummy
+    return 0;
+}
+
+/* erase a security register page (0-3)
+ * W25Q command 0x44: write-enable + opcode + 24-bit addr */
+int32_t ch341EraseSecReg(uint8_t page)
+{
+    uint8_t out[4];
+    uint8_t in[4];
+    int32_t ret;
+    uint32_t addr;
+    struct timeval tv = {0, 100};
+
+    if (devHandle == NULL) return -1;
+    if (page > 3) {
+        fprintf(stderr, "Security register page must be 0-3\n");
+        return -1;
+    }
+
+    addr = page << 12;
+
+    out[0] = 0x06; // Write enable
+    ret = ch341SpiStream(out, in, 1);
+    if (ret < 0) return ret;
+
+    out[0] = 0x44; // Erase Security Register
+    out[1] = (addr >> 16) & 0xFF;
+    out[2] = (addr >> 8) & 0xFF;
+    out[3] = addr & 0xFF;
+    ret = ch341SpiStream(out, in, 4);
+    if (ret < 0) return ret;
+
+    // Poll BUSY bit
+    do {
+        ret = ch341ReadStatus();
+        if (ret < 0) return ret;
+        if (ret != 0)
+            libusb_handle_events_timeout(NULL, &tv);
+    } while (ret != 0);
+
+    out[0] = 0x04; // Write disable
+    ret = ch341SpiStream(out, in, 1);
+    if (ret < 0) return ret;
+
+    return 0;
+}
+
+/* write data to a security register page (0-3)
+ * W25Q command 0x42: write-enable + opcode + 24-bit addr + data (up to 256 bytes)
+ * NOTE: page must be erased first, and bits can only go 1->0 */
+int32_t ch341WriteSecReg(uint8_t page, uint8_t *buf, uint32_t len)
+{
+    uint8_t out[260]; // 1 cmd + 3 addr + 256 data max
+    uint8_t in[260];
+    int32_t ret;
+    uint32_t addr;
+    struct timeval tv = {0, 100};
+
+    if (devHandle == NULL) return -1;
+    if (page > 3) {
+        fprintf(stderr, "Security register page must be 0-3\n");
+        return -1;
+    }
+    if (len > 256) {
+        fprintf(stderr, "Security register page size is 256 bytes max\n");
+        return -1;
+    }
+
+    addr = page << 12;
+
+    out[0] = 0x06; // Write enable
+    ret = ch341SpiStream(out, in, 1);
+    if (ret < 0) return ret;
+
+    out[0] = 0x42; // Program Security Register
+    out[1] = (addr >> 16) & 0xFF;
+    out[2] = (addr >> 8) & 0xFF;
+    out[3] = addr & 0xFF;
+    memcpy(&out[4], buf, len);
+
+    ret = ch341SpiStream(out, in, 4 + len);
+    if (ret < 0) return ret;
+
+    // Poll BUSY bit
+    do {
+        ret = ch341ReadStatus();
+        if (ret < 0) return ret;
+        if (ret != 0)
+            libusb_handle_events_timeout(NULL, &tv);
+    } while (ret != 0);
+
+    out[0] = 0x04; // Write disable
+    ret = ch341SpiStream(out, in, 1);
+    if (ret < 0) return ret;
+
+    return 0;
+}

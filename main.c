@@ -77,6 +77,8 @@ int main(int argc, char* argv[])
     uint32_t speed = CH341A_STM_I2C_20K;
     int8_t c;
     int offset = 0;
+    int sec_page = -1;
+    char sec_op = 0;
 
     const char usage[] =
         "\nUsage:\n"\
@@ -90,7 +92,13 @@ int main(int argc, char* argv[])
         " -o, --offset <bytes>   write data starting from specific offset\n"\
         " -r, --read <filename>  read chip and save data to filename\n"\
         " -t, --turbo            increase the i2c bus speed (-tt to use much faster speed)\n"\
-        " -d, --double           double the spi bus speed\n";
+        " -d, --double           double the spi bus speed\n"\
+        "\nSecurity Register commands:\n"\
+        " -S, --read-secreg <page>   read security register page (0-3)\n"\
+        " -W, --write-secreg <page>  write file to security register page (1-3)\n"\
+        " -E, --erase-secreg <page>  erase security register page (1-3)\n"\
+        " -L, --lock-secreg <page>   OTP-lock security register page (1-3) IRREVERSIBLE!\n"\
+        " -D, --dump-secreg          dump all security register pages with lock status\n";
     const struct option options[] = {
         {"help",    no_argument,        0, 'h'},
         {"info",    no_argument,        0, 'i'},
@@ -104,11 +112,16 @@ int main(int argc, char* argv[])
         {"turbo",   no_argument,        0, 't'},
         {"double",  no_argument,        0, 'd'},
         {"unlock",  no_argument,        0, 'u'},
+        {"read-secreg",  required_argument, 0, 'S'},
+        {"write-secreg", required_argument, 0, 'W'},
+        {"erase-secreg", required_argument, 0, 'E'},
+        {"lock-secreg",  required_argument, 0, 'L'},
+        {"dump-secreg",  no_argument,       0, 'D'},
         {0, 0, 0, 0}};
 
         int32_t optidx = 0;
 
-        while ((c = getopt_long(argc, argv, "uhiew:r:l:tdvo:", options, &optidx)) != -1){
+        while ((c = getopt_long(argc, argv, "uhiew:r:l:tdvo:S:W:E:L:D", options, &optidx)) != -1){
             switch (c) {
                 case 'i':
                 case 'e':
@@ -146,6 +159,37 @@ int main(int argc, char* argv[])
                 case 'u':
                     op='u';
                     break;
+                case 'S':
+                    sec_op = 'R';
+                    sec_page = atoi(optarg);
+                    if (!op) op = 'S';
+                    break;
+                case 'W':
+                    sec_op = 'W';
+                    sec_page = atoi(optarg);
+                    if (!op) {
+                        op = 'S';
+                        if (optind < argc && argv[optind][0] != '-') {
+                            filename = (char*) malloc(strlen(argv[optind]) + 1);
+                            strcpy(filename, argv[optind]);
+                            optind++;
+                        }
+                    }
+                    break;
+                case 'E':
+                    sec_op = 'E';
+                    sec_page = atoi(optarg);
+                    if (!op) op = 'S';
+                    break;
+                case 'L':
+                    sec_op = 'L';
+                    sec_page = atoi(optarg);
+                    if (!op) op = 'S';
+                    break;
+                case 'D':
+                    sec_op = 'D';
+                    if (!op) op = 'S';
+                    break;
                 default:
                     printf("%s\n", usage);
                     return 0;
@@ -173,6 +217,145 @@ int main(int argc, char* argv[])
         cap = length;
     }
     if (op == 'i') goto out;
+    if (op == 'S') {
+        uint8_t secbuf[256];
+        if (sec_op == 'D') {
+            for (int p = 0; p <= 3; p++) {
+                ret = ch341ReadSecReg(p, secbuf);
+                if (ret < 0) {
+                    fprintf(stderr, "Failed to read security register page %d\n", p);
+                    goto out;
+                }
+                printf("=== Security Register Page %d ===\n", p);
+                for (int j = 0; j < 256; j += 16) {
+                    printf("%02x: ", j);
+                    for (int k = 0; k < 16; k++)
+                        printf("%02x ", secbuf[j + k]);
+                    printf(" |");
+                    for (int k = 0; k < 16; k++)
+                        printf("%c", (secbuf[j + k] >= 0x20 && secbuf[j + k] < 0x7f) ? secbuf[j + k] : '.');
+                    printf("|\n");
+                }
+            }
+            ret = ch341ReadStatus2();
+            if (ret >= 0) {
+                printf("\nStatus Register 2: 0x%02x\n", ret);
+                printf("  LB1 (page 1 lock): %s\n", (ret & 0x08) ? "LOCKED (OTP)" : "unlocked");
+                printf("  LB2 (page 2 lock): %s\n", (ret & 0x10) ? "LOCKED (OTP)" : "unlocked");
+                printf("  LB3 (page 3 lock): %s\n", (ret & 0x20) ? "LOCKED (OTP)" : "unlocked");
+            }
+            goto out;
+        }
+        if (sec_page < 0 || sec_page > 3) {
+            fprintf(stderr, "Security register page must be 0-3\n");
+            goto out;
+        }
+        if (sec_op == 'R') {
+            ret = ch341ReadSecReg(sec_page, secbuf);
+            if (ret < 0) {
+                fprintf(stderr, "Failed to read security register\n");
+                goto out;
+            }
+            printf("Security Register Page %d:\n", sec_page);
+            for (int j = 0; j < 256; j += 16) {
+                printf("%02x: ", j);
+                for (int k = 0; k < 16; k++)
+                    printf("%02x ", secbuf[j + k]);
+                printf(" |");
+                for (int k = 0; k < 16; k++)
+                    printf("%c", (secbuf[j + k] >= 0x20 && secbuf[j + k] < 0x7f) ? secbuf[j + k] : '.');
+                printf("|\n");
+            }
+            goto out;
+        }
+        if (sec_op == 'E') {
+            if (sec_page == 0) {
+                fprintf(stderr, "Cannot erase manufacturer page 0\n");
+                goto out;
+            }
+            printf("Erasing security register page %d...\n", sec_page);
+            ret = ch341EraseSecReg(sec_page);
+            if (ret < 0) {
+                fprintf(stderr, "Erase failed\n");
+                goto out;
+            }
+            printf("Erase done!\n");
+            goto out;
+        }
+        if (sec_op == 'W') {
+            if (sec_page == 0) {
+                fprintf(stderr, "Cannot write manufacturer page 0\n");
+                goto out;
+            }
+            if (filename == NULL) {
+                fprintf(stderr, "No filename specified. Usage: -W <page> <filename>\n");
+                goto out;
+            }
+            fp = fopen(filename, "rb");
+            if (!fp) {
+                fprintf(stderr, "Cannot open %s\n", filename);
+                goto out;
+            }
+            memset(secbuf, 0xff, 256);
+            ret = fread(secbuf, 1, 256, fp);
+            fclose(fp);
+            if (ret <= 0) {
+                fprintf(stderr, "Empty file\n");
+                goto out;
+            }
+            printf("Writing %d bytes to security register page %d...\n", ret, sec_page);
+            int wret = ch341WriteSecReg(sec_page, secbuf, ret);
+            if (wret < 0) {
+                fprintf(stderr, "Write failed\n");
+                goto out;
+            }
+            printf("Write done! Verifying...\n");
+            uint8_t vbuf[256];
+            wret = ch341ReadSecReg(sec_page, vbuf);
+            if (wret < 0) {
+                fprintf(stderr, "Verify read failed\n");
+                goto out;
+            }
+            if (memcmp(secbuf, vbuf, ret) == 0)
+                printf("Verify OK!\n");
+            else
+                fprintf(stderr, "Verify FAILED! Data mismatch.\n");
+            goto out;
+        }
+        if (sec_op == 'L') {
+            if (sec_page < 1 || sec_page > 3) {
+                fprintf(stderr, "Can only lock pages 1-3\n");
+                goto out;
+            }
+            ret = ch341ReadStatus2();
+            if (ret < 0) {
+                fprintf(stderr, "Failed to read status register 2\n");
+                goto out;
+            }
+            uint8_t sr2 = ret;
+            uint8_t lb_bit = 1 << (sec_page + 2);
+            if (sr2 & lb_bit) {
+                printf("Security register page %d is already locked.\n", sec_page);
+                goto out;
+            }
+            printf("WARNING: This will PERMANENTLY lock security register page %d!\n", sec_page);
+            printf("This operation is IRREVERSIBLE. Type 'YES' to confirm: ");
+            fflush(stdout);
+            char confirm[16];
+            if (fgets(confirm, sizeof(confirm), stdin) == NULL || strncmp(confirm, "YES", 3) != 0) {
+                printf("Aborted.\n");
+                goto out;
+            }
+            sr2 |= lb_bit;
+            ret = ch341WriteStatus2(sr2);
+            if (ret < 0) {
+                fprintf(stderr, "Failed to write status register 2\n");
+                goto out;
+            }
+            printf("Security register page %d is now PERMANENTLY locked.\n", sec_page);
+            goto out;
+        }
+    }
     if (op == 'u') {
         ret = ch341WriteStatus(0);
         if (ret < 0) goto out;
