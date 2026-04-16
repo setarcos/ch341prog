@@ -16,3 +16,4 @@ The following people have contributed to this project:
 * persmule <persmule@gmail.com> (Add bus speed option)
 * cleverfox <devel@viruzzz.org> (Add unlock option)
 * Diratof Azdimarlow (Add nix suport)
+* matthias wenzel <wenzel@wenzellabs.de> (Add security register support and main program exit-code aware)
