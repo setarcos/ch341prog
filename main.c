@@ -68,6 +68,7 @@ void v_print(int mode, int len) { // mode: begin=0, progress = 1
 int main(int argc, char* argv[])
 {
     int32_t ret;
+    int exitcode = 0;
     uint8_t *buf;
     FILE *fp;
     char *filename;
@@ -207,9 +208,9 @@ int main(int argc, char* argv[])
     if (ret < 0)
         return -1;
     ret = ch341SetStream(speed);
-    if (ret < 0) goto out;
+    if (ret < 0) { exitcode = 1; goto out; }
     ret = ch341SpiCapacity();
-    if (ret < 0) goto out;
+    if (ret < 0) { exitcode = 1; goto out; }
     cap = 1 << ret;
     printf("Chip capacity is %d bytes\n", cap);
 
@@ -358,24 +359,27 @@ int main(int argc, char* argv[])
     }
     if (op == 'u') {
         ret = ch341WriteStatus(0);
-        if (ret < 0) goto out;
+        if (ret < 0) { exitcode = 1; goto out; }
         printf("Chip status %04x\n",ret);
     }
     if (op == 'e') {
         uint8_t timeout = 0;
         ret = ch341EraseChip();
-        if (ret < 0) goto out;
+        if (ret < 0) { exitcode = 1; goto out; }
         do {
             sleep(1);
             ret = ch341ReadStatus();
-            if (ret < 0) goto out;
+            if (ret < 0) { exitcode = 1; goto out; }
             printf(".");
             fflush(stdout);
             timeout++;
             if (timeout == 100) break;
         } while(ret != 0);
         if (timeout == 100)
+        {
             fprintf(stderr, "Chip erase timeout.\n");
+            exitcode = 1;
+        }
         else
             printf("Chip erase done!\n");
     }
@@ -383,16 +387,21 @@ int main(int argc, char* argv[])
         buf = (uint8_t *)malloc(cap);
         if (!buf) {
             fprintf(stderr, "Malloc failed for read buffer.\n");
+            exitcode = 1;
             goto out;
         }
     }
     if (op == 'r') {
         ret = ch341SpiRead(buf, offset, cap);
         if (ret < 0)
+        {
+            exitcode = 1;
             goto out;
+        }
         fp = fopen(filename, "wb");
         if (!fp) {
             fprintf(stderr, "Couldn't open file %s for writing.\n", filename);
+            exitcode = 1;
             goto out;
         }
         fwrite(buf, 1, cap, fp);
@@ -404,6 +413,7 @@ int main(int argc, char* argv[])
         fp = fopen(filename, "rb");
         if (!fp) {
             fprintf(stderr, "Couldn't open file %s for reading.\n", filename);
+            exitcode = 1;
             goto out;
         }
         ret = fread(buf, 1, cap, fp);
@@ -411,6 +421,7 @@ int main(int argc, char* argv[])
             fprintf(stderr, "Error reading file [%s]\n", filename);
             if (fp)
                 fclose(fp);
+            exitcode = 1;
             goto out;
         }
         cap = ret;
@@ -428,6 +439,7 @@ int main(int argc, char* argv[])
 
             if (!test_file) {
                 fprintf(stderr, "Couldn't open file %s for writing.\n", test_filename);
+                exitcode = 1;
                 goto out;
             }
             fwrite(buf, 1, cap, test_file);
@@ -452,7 +464,10 @@ int main(int argc, char* argv[])
             if (ch1 == ch2 || (checked_count == cap))
                 printf("\nWrite completed successfully. \n");
             else
-                printf("\nError while writing. Check your device. May be it need to be erased.\n");
+            {
+                fprintf(stderr, "\nError while writing. Check your device. Maybe it needs to be erased.\n");
+                exitcode = 1;
+            }
 
             if (remove(test_filename) == 0)
                 printf("\nAll done. \n");
@@ -463,5 +478,5 @@ int main(int argc, char* argv[])
     }
 out:
     ch341Release();
-    return 0;
+    return exitcode;
 }

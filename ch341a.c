@@ -286,8 +286,8 @@ int32_t ch341SpiCapacity(void)
     }
     else
     {
-        printf("Chip not found or missed in ch341a. Check connection\n");
-        exit(0);
+        fprintf(stderr, "Chip not found or missed in ch341a. Check connection\n");
+        exit(1);
     }
 
     return cap;
