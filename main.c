@@ -208,9 +208,9 @@ int main(int argc, char* argv[])
     if (ret < 0)
         return -1;
     ret = ch341SetStream(speed);
-    if (ret < 0) { exitcode = 1; goto out; }
+    if (ret < 0) goto fail;
     ret = ch341SpiCapacity();
-    if (ret < 0) { exitcode = 1; goto out; }
+    if (ret < 0) goto fail;
     cap = 1 << ret;
     printf("Chip capacity is %d bytes\n", cap);
 
@@ -225,8 +225,7 @@ int main(int argc, char* argv[])
                 ret = ch341ReadSecReg(p, secbuf);
                 if (ret < 0) {
                     fprintf(stderr, "Failed to read security register page %d\n", p);
-                    exitcode = 1;
-                    goto out;
+                    goto fail;
                 }
                 printf("=== Security Register Page %d ===\n", p);
                 for (int j = 0; j < 256; j += 16) {
@@ -250,15 +249,13 @@ int main(int argc, char* argv[])
         }
         if (sec_page < 0 || sec_page > 3) {
             fprintf(stderr, "Security register page must be 0-3\n");
-            exitcode = 1;
-            goto out;
+            goto fail;
         }
         if (sec_op == 'R') {
             ret = ch341ReadSecReg(sec_page, secbuf);
             if (ret < 0) {
                 fprintf(stderr, "Failed to read security register\n");
-                exitcode = 1;
-                goto out;
+                goto fail;
             }
             printf("Security Register Page %d:\n", sec_page);
             for (int j = 0; j < 256; j += 16) {
@@ -275,15 +272,13 @@ int main(int argc, char* argv[])
         if (sec_op == 'E') {
             if (sec_page == 0) {
                 fprintf(stderr, "Cannot erase manufacturer page 0\n");
-                exitcode = 1;
-                goto out;
+                goto fail;
             }
             printf("Erasing security register page %d...\n", sec_page);
             ret = ch341EraseSecReg(sec_page);
             if (ret < 0) {
                 fprintf(stderr, "Erase failed\n");
-                exitcode = 1;
-                goto out;
+                goto fail;
             }
             printf("Erase done!\n");
             goto out;
@@ -291,62 +286,54 @@ int main(int argc, char* argv[])
         if (sec_op == 'W') {
             if (sec_page == 0) {
                 fprintf(stderr, "Cannot write manufacturer page 0\n");
-                exitcode = 1;
-                goto out;
+                goto fail;
             }
             if (filename == NULL) {
                 fprintf(stderr, "No filename specified. Usage: -W <page> <filename>\n");
-                exitcode = 1;
-                goto out;
+                goto fail;
             }
             fp = fopen(filename, "rb");
             if (!fp) {
                 fprintf(stderr, "Cannot open %s\n", filename);
-                exitcode = 1;
-                goto out;
+                goto fail;
             }
             memset(secbuf, 0xff, 256);
             ret = fread(secbuf, 1, 256, fp);
             fclose(fp);
             if (ret <= 0) {
                 fprintf(stderr, "Empty file\n");
-                exitcode = 1;
-                goto out;
+                goto fail;
             }
             printf("Writing %d bytes to security register page %d...\n", ret, sec_page);
             int wret = ch341WriteSecReg(sec_page, secbuf, ret);
             if (wret < 0) {
                 fprintf(stderr, "Write failed\n");
-                exitcode = 1;
-                goto out;
+                goto fail;
             }
             printf("Write done! Verifying...\n");
             uint8_t vbuf[256];
             wret = ch341ReadSecReg(sec_page, vbuf);
             if (wret < 0) {
                 fprintf(stderr, "Verify read failed\n");
-                exitcode = 1;
-                goto out;
+                goto fail;
             }
             if (memcmp(secbuf, vbuf, ret) == 0)
                 printf("Verify OK!\n");
             else {
                 fprintf(stderr, "Verify FAILED! Data mismatch.\n");
-                exitcode = 1;
+                goto fail;
             }
             goto out;
         }
         if (sec_op == 'L') {
             if (sec_page < 1 || sec_page > 3) {
                 fprintf(stderr, "Can only lock pages 1-3\n");
-                exitcode = 1;
-                goto out;
+                goto fail;
             }
             ret = ch341ReadStatus2();
             if (ret < 0) {
                 fprintf(stderr, "Failed to read status register 2\n");
-                exitcode = 1;
-                goto out;
+                goto fail;
             }
             uint8_t sr2 = ret;
             uint8_t lb_bit = 1 << (sec_page + 2);
@@ -366,8 +353,7 @@ int main(int argc, char* argv[])
             ret = ch341WriteStatus2(sr2);
             if (ret < 0) {
                 fprintf(stderr, "Failed to write status register 2\n");
-                exitcode = 1;
-                goto out;
+                goto fail;
             }
             printf("Security register page %d is now PERMANENTLY locked.\n", sec_page);
             goto out;
@@ -375,17 +361,17 @@ int main(int argc, char* argv[])
     }
     if (op == 'u') {
         ret = ch341WriteStatus(0);
-        if (ret < 0) { exitcode = 1; goto out; }
+        if (ret < 0) goto fail;
         printf("Chip status %04x\n",ret);
     }
     if (op == 'e') {
         uint8_t timeout = 0;
         ret = ch341EraseChip();
-        if (ret < 0) { exitcode = 1; goto out; }
+        if (ret < 0) goto fail;
         do {
             sleep(1);
             ret = ch341ReadStatus();
-            if (ret < 0) { exitcode = 1; goto out; }
+            if (ret < 0) goto fail;
             printf(".");
             fflush(stdout);
             timeout++;
@@ -394,7 +380,7 @@ int main(int argc, char* argv[])
         if (timeout == 100)
         {
             fprintf(stderr, "Chip erase timeout.\n");
-            exitcode = 1;
+            goto fail;
         }
         else
             printf("Chip erase done!\n");
@@ -403,22 +389,19 @@ int main(int argc, char* argv[])
         buf = (uint8_t *)malloc(cap);
         if (!buf) {
             fprintf(stderr, "Malloc failed for read buffer.\n");
-            exitcode = 1;
-            goto out;
+            goto fail;
         }
     }
     if (op == 'r') {
         ret = ch341SpiRead(buf, offset, cap);
         if (ret < 0)
         {
-            exitcode = 1;
-            goto out;
+            goto fail;
         }
         fp = fopen(filename, "wb");
         if (!fp) {
             fprintf(stderr, "Couldn't open file %s for writing.\n", filename);
-            exitcode = 1;
-            goto out;
+            goto fail;
         }
         fwrite(buf, 1, cap, fp);
         if (ferror(fp))
@@ -429,16 +412,14 @@ int main(int argc, char* argv[])
         fp = fopen(filename, "rb");
         if (!fp) {
             fprintf(stderr, "Couldn't open file %s for reading.\n", filename);
-            exitcode = 1;
-            goto out;
+            goto fail;
         }
         ret = fread(buf, 1, cap, fp);
         if (ferror(fp)) {
             fprintf(stderr, "Error reading file [%s]\n", filename);
             if (fp)
                 fclose(fp);
-            exitcode = 1;
-            goto out;
+            goto fail;
         }
         cap = ret;
         fprintf(stderr, "File Size is [%d]\n", ret);
@@ -455,8 +436,7 @@ int main(int argc, char* argv[])
 
             if (!test_file) {
                 fprintf(stderr, "Couldn't open file %s for writing.\n", test_filename);
-                exitcode = 1;
-                goto out;
+                goto fail;
             }
             fwrite(buf, 1, cap, test_file);
 
@@ -482,7 +462,7 @@ int main(int argc, char* argv[])
             else
             {
                 fprintf(stderr, "\nError while writing. Check your device. Maybe it needs to be erased.\n");
-                exitcode = 1;
+                goto fail;
             }
 
             if (remove(test_filename) == 0)
@@ -492,6 +472,9 @@ int main(int argc, char* argv[])
         }
         fclose(fp);
     }
+    goto out;
+fail:
+    exitcode = 1;
 out:
     ch341Release();
     return exitcode;
